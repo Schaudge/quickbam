@@ -1,0 +1,33 @@
+# Minimal makefile for Sphinx documentation
+#
+
+# You can set these variables from the command line, and also
+# from the environment for the first two.
+SPHINXOPTS    ?=
+SPHINXBUILD   ?= sphinx-build
+SOURCEDIR     = @srcdir@
+BUILDDIR      = _build
+CONFIGFILE    = .
+
+opts          = -c $(CONFIGFILE) -Dbreathe_projects.mmbam=doxygen/xml $(SPHINXOPTS)
+
+
+# Put it first so that "make" without argument is like "make help".
+all: doxygen/xml/index.xml
+	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(opts) $(O)
+
+.PHONY: help Makefile
+
+# Catch-all target: route all unknown targets to Sphinx using the new
+# "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
+#%: Makefile
+#	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(opts) $(O)
+
+doxygen/xml/index.xml:
+	doxygen
+
+check:
+	test -f _build/html/index.html
+
+clean:
+	rm -rf _build doxygen

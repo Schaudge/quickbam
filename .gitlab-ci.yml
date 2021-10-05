@@ -1,0 +1,61 @@
+# use the official gcc image, based on debian
+# can use verions as well, like gcc:5.2
+# see https://hub.docker.com/_/gcc/
+
+image: gcc
+
+build:
+  stage: build
+  # instead of calling g++ directly you can also use some build toolkit like make
+  # install the necessary build tools when needed
+  before_script:
+    - echo "build - before_script"
+    - ls
+    - apt update && apt -y install make autoconf libdeflate-dev libgtest-dev libtbb-dev doxygen python3-pip
+    - pip install sphinx sphinx-rtd-theme breathe
+    - autoreconf -i
+    - mkdir -p build
+    - cd build
+    - ../configure
+  script:
+    - echo "build - script"
+    - ls
+    - make
+    - make -C docs
+  artifacts:
+      #key: $CI_COMMIT_BRANCH
+    paths:
+      - build
+      - build-aux
+      - autom4te.cache
+      - config.h.in
+
+# run tests using the binary built before
+test:
+  stage: test
+  before_script:
+    - echo "test - before_script"
+    - apt update && apt -y install make autoconf libdeflate-dev libgtest-dev libtbb-dev
+  script:
+    - echo "test - script"
+    - ls
+    - cd build/test
+    - make all_tests
+    - ./all_tests --gtest_output="xml:gtest_report.xml"
+  artifacts:
+    when: always
+    reports:
+      junit: build/test/gtest_report.xml
+
+# deploy documentation
+pages:
+    stage: deploy
+    image: alpine:latest
+    environment:
+        name: production
+        url: https://yiq.gitlab.io/mmbam
+    script:
+        - cp -a build/docs/_build/html ./public
+    artifacts:
+        paths:
+            - public
