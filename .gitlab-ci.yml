@@ -22,6 +22,7 @@ build:
     - ls
     - make
     - make -C docs
+    - make dist
   artifacts:
       #key: $CI_COMMIT_BRANCH
     paths:
