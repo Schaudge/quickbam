@@ -15,5 +15,7 @@ Getting started
 
 We recommend that you download our pre-packaged distribution tarball at https://gitlab.com/yiq/mmbam/-/jobs/1655766656/artifacts/raw/build/mmbam-0.1.0.tar.gz since the repository does not contain autotools genenerated files (e.g. the configure script).
 
+If you prefer to clone the repository, you need to install autoconf, automake, and libtools, as well as to run `autoreconf -i` in order to properly regenerate the build system.
+
 Comprehensive documentation is available at https://yiq.gitlab.io/mmbam/
 
