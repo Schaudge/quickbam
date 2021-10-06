@@ -13,5 +13,7 @@ We developed mmbam, which uses memory mapped I/O and the bam file index (BAI) fo
 Getting started
 ---------------
 
+We recommend that you download our pre-packaged distribution tarball at https://gitlab.com/yiq/mmbam/-/jobs/1655766656/artifacts/raw/build/mmbam-0.1.0.tar.gz since the repository does not contain autotools genenerated files (e.g. the configure script).
+
 Comprehensive documentation is available at https://yiq.gitlab.io/mmbam/
 
