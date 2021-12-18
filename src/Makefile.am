@@ -1,9 +1,9 @@
-include_HEADERS=mmbam/bam.h\
-				mmbam/mbgzf.h\
-				mmbam/mfile.h\
-				mmbam/nfo_iterator.h\
-				mmbam/index.h\
-				mmbam/mpileup.h
+pkginclude_HEADERS=mmbam/bam.h\
+				   mmbam/mbgzf.h\
+				   mmbam/mfile.h\
+				   mmbam/nfo_iterator.h\
+				   mmbam/index.h\
+				   mmbam/mpileup.h
 
 lib_LTLIBRARIES=libmmbam.la
 
