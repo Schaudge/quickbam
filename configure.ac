@@ -26,6 +26,8 @@ AM_PROG_AR
 LT_PREREQ([2.4])
 LT_INIT()
 
+AX_PTHREAD
+
 # Doxygen and sphinx
 AC_CHECK_PROGS([DOXYGEN], [doxygen])
 AC_CHECK_PROGS([SPHINX], [sphinx-build])
