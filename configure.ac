@@ -40,7 +40,10 @@ fi
 
 AM_CONDITIONAL([BUILD_DOCS], [test -n "$DOXYGEN" -a -n "$SPHINX"])
 
-PKG_CHECK_MODULES([GTEST], [gtest_main])
+# PKG_CHECK_MODULES([GTEST], [gtest_main])
+AC_CHECK_LIB([gtest_main], [main], [], [AC_MSG_ERROR([libgtest_main not found])])
+AC_CHECK_LIB([deflate], [libdeflate_gzip_decompress_ex], [], [AC_MSG_ERROR([libdeflate not found])])
+AC_CHECK_LIB([tbb], [main], [], [AC_MSG_ERROR([libtbb not found])])
 
 AC_CONFIG_LINKS([test/data/10blks.bam:test/data/10blks.bam
                  test/data/header_only.bam:test/data/header_only.bam

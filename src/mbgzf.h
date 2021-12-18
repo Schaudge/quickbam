@@ -107,13 +107,13 @@ std::vector<uint8_t> bgzf_inflate(const bgzf_block_t& block);
 
 //! Inflate a continuous range of several BGZF blocks
 //! \param src The beginning of the BGZF blocks
-//! \param src_len The length of all the BGZF blocks conbined
+//! \param src_len The length of all the BGZF blocks combined
 //! \return A vector consists of the inflated bytes from all specified BGZF blocks
 std::vector<uint8_t> bgzf_inflate_range(const uint8_t *src, const size_t src_len);
 
 //! Inflate a continuous range of several BGZF blocks in parallel
 //! \param src The beginning of the BGZF blocks
-//! \param src_len The length of all the BGZF blocks conbined
+//! \param src_len The length of all the BGZF blocks combined
 //! \param parallel_inflate A functor object to implement the actual parallelization mechanism.
 //! \return A vector consists of the inflated bytes from all specified BGZF blocks
 std::vector<uint8_t> bgzf_inflate_range_p(const uint8_t *src, const size_t src_len,
