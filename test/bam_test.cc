@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include "mfile.h"
-#include "mbgzf.h"
-#include "bam.h"
-#include "index.h"
+#include "mmbam/mfile.h"
+#include "mmbam/mbgzf.h"
+#include "mmbam/bam.h"
+#include "mmbam/index.h"
 #include <algorithm>
 #include <fstream>
 #include <stdio.h>

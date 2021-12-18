@@ -29,10 +29,10 @@
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_for_each.h>
 
-#include <mbgzf.h>
-#include <index.h>
-#include <bam.h>
-#include <mpileup.h>
+#include <mmbam/mbgzf.h>
+#include <mmbam/index.h>
+#include <mmbam/bam.h>
+#include <mmbam/mpileup.h>
 
 template<typename CLK> void timestamp(CLK& clk_start, const std::string& label) {
     auto clk_now = std::chrono::high_resolution_clock::now();

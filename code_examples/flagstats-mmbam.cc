@@ -49,10 +49,10 @@ DEALINGS IN THE SOFTWARE.  */
 #include <tbb/parallel_reduce.h>
 #include <tbb/task_scheduler_init.h>
 
-#include <mfile.h>
-#include <mbgzf.h>
-#include <bam.h>
-#include <index.h>
+#include <mmbam/mfile.h>
+#include <mmbam/mbgzf.h>
+#include <mmbam/bam.h>
+#include <mmbam/index.h>
 
 // The following defs are taken from htslib/sam.h
 /*! @abstract the read is paired in sequencing, no matter whether it is mapped in a pair */

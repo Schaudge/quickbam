@@ -2,8 +2,8 @@
 #include <iostream>
 #include <algorithm>
 
-#include "mfile.h"
-#include "mbgzf.h"
+#include "mmbam/mfile.h"
+#include "mmbam/mbgzf.h"
 
 #include <tbb/parallel_for.h>
 

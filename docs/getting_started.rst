@@ -27,8 +27,8 @@ A typical client code (programs that use libmmbam) follows these steps:
 
 .. admonition:: Example
 
-   the ``bam-read-count`` ``flagstats-tbb`` example programs creates one region
-   for every 16kb genome window, directly from the index
+   the ``readcount-mmbam`` and ``flagstats-tbb`` example programs creates one
+   region for every 16kb genome window, directly from the index
 
    the ``snp-pileup-tbb`` example code creates one region for all
    variants whose locations span less than 1 megabyte of data in the BAM file,
@@ -53,9 +53,10 @@ execute the following commands on the command line
   sudo make install
 
 
-libmmbam depends on libz for decompression and Intel Thread Building Block for
-parallelization. Programs that use libmmbam needs to specify ``-lmmbam -lz
--ltbb`` in their linker flags in order to properly link these libraries.
+libmmbam depends on libdeflate for decompression and Intel Thread Building
+Block for parallelization. Programs that use libmmbam needs to specify
+``-lmmbam -ldeflate -ltbb`` in their linker flags in order to properly link these
+libraries.
 
 Setting up a project
 ====================
@@ -64,7 +65,7 @@ We recommend using autotools or CMake to setup the build system of your new
 project. If you prefer to write makefiles manually, make sure to 
 
 * enable C++14 features (e.g. ``-std=c++14``) during compilation
-* include the appropriate libraries ``-lmmbam -lz -ltbb`` during linking.  
+* include the appropriate libraries ``-lmmbam -ldeflate -ltbb`` during linking.  
 
 Example build systems using automake is available under the ``code_examples``
 directory in the libmmbam repository.
@@ -83,9 +84,9 @@ Iterate over BGZF blocks using explicit loop
 
 .. code-block:: cpp
    
-   #include <mfile.h>
-   #include <mbgzf.h>
-   #include <bam.h>
+   #include <mmbam/mfile.h>
+   #include <mmbam/mbgzf.h>
+   #include <mmbam/bam.h>
 
    #include <string>
 
@@ -220,10 +221,10 @@ records of a particular region
 
 .. code-block:: cpp
 
-   #include <mfile.h>
-   #include <mbgzf.h>
-   #include <bam.h>
-   #include <index.h>
+   #include <mmbam/mfile.h>
+   #include <mmbam/mbgzf.h>
+   #include <mmbam/bam.h>
+   #include <mmbam/index.h>
 
    #include <string>
    #include <fstream>

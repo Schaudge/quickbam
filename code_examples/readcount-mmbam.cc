@@ -1,9 +1,9 @@
 #include<iostream>
 #include<fstream>
 
-#include "mfile.h"
-#include "bam.h"
-#include "index.h"
+#include "mmbam/mfile.h"
+#include "mmbam/bam.h"
+#include "mmbam/index.h"
 
 // perform parallel read of a bam file.
 

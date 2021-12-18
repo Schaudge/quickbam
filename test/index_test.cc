@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include <fstream>
 #include <iostream>
-#include "index.h"
-#include "bam.h"
+#include "mmbam/index.h"
+#include "mmbam/bam.h"
 
 TEST(INDEX, CanBeLoaded) {
     auto bai_stream = std::ifstream("data/chr10.100blks.bam.bai");

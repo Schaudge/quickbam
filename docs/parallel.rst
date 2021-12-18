@@ -28,9 +28,9 @@ as the parallelization mechanism for this example
 
    #include <iostream>
    #include <fstream>
-   #include <mfile.h>
-   #include <bam.h>
-   #include <index.h>
+   #include <mmbam/mfile.h>
+   #include <mmbam/bam.h>
+   #include <mmbam/index.h>
 
    int main(int argc, const char *const argv[]) {
 
@@ -74,10 +74,10 @@ program in the "code_example" directory of the repository.
 
 .. code-block:: cpp
 
-   #include <mfile.h>
-   #include <bam.h>
-   #include <index.h>
-   #include <mpileup.h>
+   #include <mmbam/mfile.h>
+   #include <mmbam/bam.h>
+   #include <mmbam/index.h>
+   #include <mmbam/mpileup.h>
 
    #include <fstream>
 

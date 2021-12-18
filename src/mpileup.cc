@@ -1,7 +1,7 @@
-#include "mpileup.h"
-#include "mbgzf.h"
-#include "bam.h"
-#include "index.h"
+#include "mmbam/mpileup.h"
+#include "mmbam/mbgzf.h"
+#include "mmbam/bam.h"
+#include "mmbam/index.h"
 #include <string>
 #include <list>
 #include <functional>
