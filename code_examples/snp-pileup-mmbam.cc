@@ -341,12 +341,14 @@ void load_vcf(std::vector<vcf_record>& records, std::vector<std::pair<size_t, si
     if(rc != 0) throw std::runtime_error("cannot get vcf file size");
     auto vcf_size = stat_buf.st_size;
 
-    char *vcf_content = (char *)malloc(vcf_size);
+    char *vcf_content = (char *)malloc(vcf_size+1);
     auto vcf_mf = mfile_open(filename);
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, vcf_size), [&](tbb::blocked_range<size_t>& r) {
         memcpy(vcf_content+r.begin(), begin(vcf_mf) +r.begin(), r.end() - r.begin());
     });
+
+    vcf_content[vcf_size] = 0;
 
 
     // sample 1% of the vcf buffer to estimate number of lines
