@@ -101,6 +101,9 @@ void snp_mpileup(std::vector<vcf_record>& vcf_records,
             mpileup(mfiles, indices, chr_tid_maps[0].at(curr_vcf->chrom),
                     curr_vcf->pos, last_vcf->pos + 1, filter_predicate,
                     [&vcf_records, &curr_vcf, &last_vcf, &batch_pos_start, &batch_pos_end](const auto& p) {
+
+                //std::cout<<"PILEUP at "<<p.pos<<std::endl;
+
                 if(curr_vcf > last_vcf) return false;
 
 
@@ -198,6 +201,9 @@ int main(int argc, char** argv) {
     // 2.2.2. count the number of deletions, refs, alts, or others (error)
     // 3. produce an output with the following format
     // 3.1. Chromosome,Position,Ref,Alt,File1R,File1A,File1E,File1D,...
+
+    // setup TBB
+    tbb::task_scheduler_init t_init(argc > 4 ? atoi(argv[4]) : tbb::task_scheduler_init::automatic);
     
     auto clk_start = std::chrono::high_resolution_clock::now();
     timestamp(clk_start, "started");
@@ -229,20 +235,21 @@ int main(int argc, char** argv) {
 
     timestamp(clk_start, "vcf loaded, "+std::to_string(records.size()) + " vars, "+std::to_string(work_ranges.size())+" ranges");
 
-    //auto work_ranges = vcf_parallel_ranges(records, indices, chr_tid_maps);
-    //timestamp(clk_start, "range calculated, "+std::to_string(work_ranges.size())+" ranges");
-    //return 0;
-
     tbb::parallel_for_each(work_ranges.cbegin(), work_ranges.cend(), [&](auto& r){
+
 
         auto curr_vcf = records.begin() + r.first;
         auto last_vcf = records.begin() + (r.second - 1);
         auto end_vcf = records.begin() + r.second;
 
+        //std::cout<<"Job: "<<curr_vcf->pos<<" - "<<last_vcf->pos<<std::endl;
+
         // pileup from curr_vcf to last_vcf
         mpileup(mfiles, indices, chr_tid_maps[0].at(curr_vcf->chrom),
                 curr_vcf->pos, last_vcf->pos + 1, filter_predicate,
                 [&curr_vcf, &end_vcf](const auto& p) {
+
+            //std::cout<<"PILEUP got position "<<p.pos<<std::endl;
 
             // ignore earlier positions
             if(p.pos < curr_vcf->pos) return true;
@@ -293,7 +300,7 @@ int main(int argc, char** argv) {
 
     for(auto& rec : records) {
 
-        bool fails_min = !(rec.depth[0] >=0 && rec.depth[1] >= 0);
+        bool fails_min = !(rec.depth[0]>0 || rec.depth[1] > 0);
         bool is_not_zero = rec.ref_count[0] + rec.alt_count[0] + rec.err_count[0] +
                 rec.ref_count[1] + rec.alt_count[1] + rec.err_count[1] > 0;
         
@@ -314,6 +321,7 @@ int main(int argc, char** argv) {
 
             outstream<<std::endl;
         }
+
     }
 
     std::cout<<outstream.rdbuf();

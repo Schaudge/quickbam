@@ -66,11 +66,15 @@ std::vector<uint8_t> bam_load_block(const mfile_t::ptr_t& mfile, uint64_t ioffse
 
     auto bgzf_block_it = bgzf_block_first;
 
-    //std::vector<uint8_t> inflated_bytes;
-    //inflated_bytes = bgzf_inflate_range(
+    /**** SEQUENCIAL DECOMPRESSION ****/
+    //std::vector<uint8_t> inflated_bytes_s;
+    //inflated_bytes_s = bgzf_inflate_range(
     //        begin<const uint8_t>(mfile) + coffset_first,
     //        coffset_last - coffset_first);
 
+    //std::cout<<"sequential decompressed "<<inflated_bytes_s.size()<<std::endl;
+
+    /**** PARALLEL DECOMPRESSION ****/
     auto inflated_bytes = bgzf_inflate_range_p(
             begin<const uint8_t>(mfile) + coffset_first,
             coffset_last - coffset_first, [](
@@ -78,13 +82,27 @@ std::vector<uint8_t> bam_load_block(const mfile_t::ptr_t& mfile, uint64_t ioffse
         auto& src_off_vector, auto& dest_off_vector,
         auto inflate) -> std::vector<uint8_t> {
 
+        //std::cout<<"starting parallel decompression jobs"<<std::endl;
+        //std::cout<<"total buffer out size = "<<dest_len<<std::endl;
+
         std::vector<uint8_t> buffer;
         buffer.resize(dest_len);
 
         tbb::parallel_for(tbb::blocked_range<size_t>(0, src_off_vector.size()), [&](const auto& r){
 
-            auto sl = ( r.end() == src_off_vector.size() ? src_len : src_off_vector[r.end()] ) - src_off_vector[r.begin()];
-            auto dl = ( r.end() == dest_off_vector.size() ? dest_len : dest_off_vector[r.end()] ) - dest_off_vector[r.begin()];
+            //std::cout<<"inflate job "<<r.begin()<<" - "<<r.end()<<" / "<<src_off_vector.size()<<std::endl;
+
+            //auto sl = ( r.end() == src_off_vector.size() ? src_len : src_off_vector[r.end()] ) - src_off_vector[r.begin()];
+            auto sl = r.end() == src_off_vector.size() ? 
+                    src_len                 - src_off_vector[r.begin()] : 
+                    src_off_vector[r.end()] - src_off_vector[r.begin()];
+
+            auto dl = r.end() == dest_off_vector.size() ? 
+                    dest_len                 - dest_off_vector[r.begin()] :
+                    dest_off_vector[r.end()] - dest_off_vector[r.begin()];
+
+            //std::cout<<"inflating "<<src_off_vector[r.begin()]<<" to "<<src_off_vector[r.begin()] + sl;
+            //std::cout<<" into "<<dest_off_vector[r.begin()] <<" to "<<dest_off_vector[r.begin()] + dl<<std::endl;
 
             inflate(src+src_off_vector[r.begin()], sl, &buffer[dest_off_vector[r.begin()]], dl);
 
@@ -93,8 +111,16 @@ std::vector<uint8_t> bam_load_block(const mfile_t::ptr_t& mfile, uint64_t ioffse
         return buffer;
     });
 
+    //std::cout<<"sequential inflated "<<inflated_bytes_s.size()<<" bytes"<<std::endl;
+    //std::cout<<"parallel   inflated "<<inflated_bytes.size()<<" bytes"<<std::endl;
 
-
+    //for(size_t i=0; i<inflated_bytes_s.size(); i++) {
+    //    if(inflated_bytes_s[i] != inflated_bytes[i]) {
+    //        std::cout<<"sequential and parallel differs at byte "<<i<<std::endl;
+    //        exit(1);
+    //    }
+    //}
+    //exit(0);
 
 
     if(coffset_last < mfile->size) {
@@ -161,11 +187,17 @@ std::vector<uint8_t> bam_load_region(const mfile_t::ptr_t& mfile, const index_t&
     if(end_intv > index.ref[ref_id].n_intv - 1)
         end_intv = index.ref[ref_id].n_intv - 1;
 
+    //std::cout<<"[bam::bam_load_region] loading chunks "<<start_intv<<" - "<<end_intv<<std::endl;
+    //std::cout<<"[bam::bam_load_region] bytes "<<index.ref[ref_id].ioffset[start_intv];
+    //std::cout<<" - "<<index.ref[ref_id].ioffset[end_intv]<<std::endl;
+
     // load bgzf block in batch
     std::vector<uint8_t> bam_buffer_preload = bam_load_block(
             mfile,
             index.ref[ref_id].ioffset[start_intv],
             index.ref[ref_id].ioffset[end_intv]);
+
+    //std::cout<<"[bam_load_region] preload buffer size: "<<bam_buffer_preload.size()<<std::endl;
 
     auto bam_iter = reinterpret_cast<const bam_rec_t *>(bam_buffer_preload.data());
     auto buffer_end = bam_buffer_preload.data() + bam_buffer_preload.size();
@@ -175,11 +207,17 @@ std::vector<uint8_t> bam_load_region(const mfile_t::ptr_t& mfile, const index_t&
         auto bam_next = BYTEREF(bam_iter) + bam_iter->block_size + 4;
         // reads returned. See if the region is contained
         while(bam_next < buffer_end) {
+            //std::cout<<"[bam_load_region] read flag "<<bam_iter->flag <<std::endl;
+            //std::cout<<"[bam_load_region] read name length"<<(int)bam_iter->l_read_name<<std::endl;
+            //std::cout<<"[bam_load_region] checking read "<<bam_iter->pos<<"-"<<bam_iter->pos + bam_query_length(bam_iter)<<std::endl;
             if( READ_IN_REGION(bam_iter, region_start, region_end) && first_in_region == -1) {
                 first_in_region = BYTEREF(bam_iter) - bam_buffer_preload.data();
             }
             if(bam_iter->ref_id != ref_id || bam_iter->pos >= region_end) {
-                if(first_in_region == -1) return std::vector<uint8_t>();
+                if(first_in_region == -1) {
+                    //std::cout<<"[bam_load_region] region exausted without finding first in region"<<std::endl;
+                    return std::vector<uint8_t>();
+                }
                 return std::vector<uint8_t>(
                         bam_buffer_preload.cbegin() + first_in_region,
                         bam_buffer_preload.cbegin() + (BYTEREF(bam_iter) - bam_buffer_preload.data())

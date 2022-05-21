@@ -64,7 +64,9 @@ void mpileup(std::vector<std::reference_wrapper<const mfile_t::ptr_t>> mfiles,
     std::vector<std::vector<uint8_t>> m_buffers(n_files);
     std::vector<size_t> m_buffer_offsets(n_files, 0);
     for(size_t i=0; i<n_files; i++) {
+        //std::cout<<"[mpileup] loading buffer "<<i<<" region "<<ref_id<<":"<<pos_start<<" - "<<pos_end<<std::endl;
         m_buffers[i] = bam_load_region(mfiles[i], indices[i], ref_id, pos_start, pos_end);
+        //std::cout<<"[mpileup] "<<m_buffers[i].size()<<" bytes loaded"<<std::endl;
     }
     bool debug = false;
 

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <functional>
 #include <libdeflate.h>
+#include <cassert>
 
 #ifdef USE_ZLIB
 #include <zlib.h>
@@ -49,29 +50,25 @@ std::vector<uint8_t> bgzf_inflate_range(const uint8_t *src, const size_t src_len
         bgzf_it++;
     }
 
-
     std::vector<uint8_t> buffer(isize);
 
     // decompress in batches
     bgzf_it = bgzf_iterator_t(reinterpret_cast<const bgzf_block_t*>(src));
     size_t batch_isize = 0;
-    unsigned int maxBufSize = - 1;
 
     size_t buffer_start = 0;
     while(bgzf_it < bgzf_last) {
         auto this_isize = bgzf_isize(*bgzf_it);
         batch_isize += this_isize;
-        if(batch_isize > maxBufSize) {
-            // decompress [bgzf_head, bgzf_it)
-            //auto bytes_inf = bgzf_decompress(bgzf_head.ptr, bgzf_it.ptr - bgzf_head.ptr, &buffer[buffer_start], batch_isize - this_isize);
-            auto bytes_inf = libdeflate_decompress(bgzf_head.ptr, bgzf_it.ptr - bgzf_head.ptr, &buffer[buffer_start], batch_isize - this_isize);
-            // buffer is filled from buffer_start - buffer_start + isize;
-            // next batch should fill starting from buffer_start + isize;
-            if(bytes_inf != batch_isize - this_isize) throw std::runtime_error("batch isize mismatch");
-            buffer_start = buffer_start + bytes_inf;
-            bgzf_head = bgzf_it;
-            batch_isize = this_isize;
-        }
+        // decompress [bgzf_head, bgzf_it)
+        //auto bytes_inf = bgzf_decompress(bgzf_head.ptr, bgzf_it.ptr - bgzf_head.ptr, &buffer[buffer_start], batch_isize - this_isize);
+        auto bytes_inf = libdeflate_decompress(bgzf_head.ptr, bgzf_it.ptr - bgzf_head.ptr, &buffer[buffer_start], batch_isize - this_isize);
+        // buffer is filled from buffer_start - buffer_start + isize;
+        // next batch should fill starting from buffer_start + isize;
+        if(bytes_inf != batch_isize - this_isize) throw std::runtime_error("batch isize mismatch");
+        buffer_start = buffer_start + bytes_inf;
+        bgzf_head = bgzf_it;
+        batch_isize = this_isize;
         bgzf_it++;
     }
     // one more fill
@@ -158,14 +155,41 @@ static size_t bgzf_decompress(const uint8_t *src, size_t src_len, uint8_t *dest,
 #endif
 
 static size_t libdeflate_decompress(const uint8_t *src, size_t src_len, uint8_t *dest, size_t dest_len) {
-    size_t actual_in_nbytes;
-    size_t actual_out_nbytes;
+    size_t actual_in_nbytes = 0;
+    size_t actual_out_nbytes = 0;
+
+    bgzf_iterator_t bgzf_it(reinterpret_cast<const bgzf_block_t*>(src));
+    bgzf_iterator_t bgzf_last(reinterpret_cast<const bgzf_block_t*>(src + src_len));
+
+    // calculate total isize
+    size_t isize = 0;
+    size_t blocks = 0;
+    while(bgzf_it < bgzf_last) {
+        auto this_isize = bgzf_isize(*bgzf_it);
+        isize += this_isize;
+        bgzf_it++;
+        blocks++;
+    }
 
     struct libdeflate_decompressor *d;
     d = libdeflate_alloc_decompressor();
 
-    auto ret = libdeflate_gzip_decompress_ex(d, src, src_len, dest, dest_len, &actual_in_nbytes, &actual_out_nbytes);
+    // sanity check
+    assert(src[0] == 31);
+    assert(src[1] == 139);
+
+    size_t total_in_bytes = 0;
+    size_t total_out_bytes = 0;
+    while(total_in_bytes < src_len) {
+        auto ret = libdeflate_gzip_decompress_ex(d, src + total_in_bytes, src_len - total_in_bytes, dest + total_out_bytes, dest_len - total_out_bytes, &actual_in_nbytes, &actual_out_nbytes);
+        total_in_bytes += actual_in_nbytes;
+        total_out_bytes += actual_out_nbytes;
+        actual_in_nbytes = 0;
+        actual_out_nbytes = 0;
+    }
     libdeflate_free_decompressor(d);
 
-    return actual_out_nbytes;
+    assert(isize == total_out_bytes);
+
+    return total_out_bytes;
 }
