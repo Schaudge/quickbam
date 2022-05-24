@@ -249,7 +249,7 @@ std::vector<uint8_t> bam_load_region(const mfile_t::ptr_t& mfile, const index_t&
         bam_iter = reinterpret_cast<const bam_rec_t *>(bam_buffer.data() + prev_offset);
         decltype(bam_iter) bam_prev;
         auto buffer_end = bam_buffer.data() + bam_buffer.size();
-        while(BYTEREF(bam_iter) < buffer_end) {
+        while(BYTEREF(BAM_NEXT(bam_iter)) < buffer_end) {
             if( READ_IN_REGION(bam_iter, region_start, region_end) && first_in_region == -1 ) {
                 first_in_region = BYTEREF(bam_iter) - bam_buffer.data() - index_uoffset(ioffset);
             }
