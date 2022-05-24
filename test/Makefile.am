@@ -1,6 +1,8 @@
 check_PROGRAMS = all_tests
 TESTS = $(check_PROGRAMS)
 
+GTEST_LIBS = -lgtest_main -lgtest
+
 AM_CPPFLAGS=-I$(top_srcdir)/src
 AM_CXXFLAGS=$(GTEST_CFLAGS) $(PTHREAD_CFLAGS)
 LDADD=$(GTEST_LIBS) ../src/libmmbam.la -ldeflate -ltbb $(PTHREAD_LIBS)

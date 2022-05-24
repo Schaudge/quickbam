@@ -34,6 +34,8 @@
 #include <mmbam/bam.h>
 #include <mmbam/mpileup.h>
 
+auto n_threads = tbb::task_scheduler_init::automatic;
+
 template<typename CLK> void timestamp(CLK& clk_start, const std::string& label) {
     auto clk_now = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(clk_now - clk_start).count();
@@ -203,7 +205,8 @@ int main(int argc, char** argv) {
     // 3.1. Chromosome,Position,Ref,Alt,File1R,File1A,File1E,File1D,...
 
     // setup TBB
-    tbb::task_scheduler_init t_init(argc > 4 ? atoi(argv[4]) : tbb::task_scheduler_init::automatic);
+    if(argc > 4) n_threads = atoi(argv[4]);
+    tbb::task_scheduler_init t_init(n_threads);
     
     auto clk_start = std::chrono::high_resolution_clock::now();
     timestamp(clk_start, "started");
@@ -352,8 +355,11 @@ void load_vcf(std::vector<vcf_record>& records, std::vector<std::pair<size_t, si
     char *vcf_content = (char *)malloc(vcf_size+1);
     auto vcf_mf = mfile_open(filename);
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, vcf_size), [&](tbb::blocked_range<size_t>& r) {
-        memcpy(vcf_content+r.begin(), begin(vcf_mf) +r.begin(), r.end() - r.begin());
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, vcf_size, vcf_size / n_threads), [&](tbb::blocked_range<size_t>& r) {
+        //memcpy(vcf_content+r.begin(), begin(vcf_mf) +r.begin(), r.end() - r.begin());
+        FILE *fp = fopen(filename, "rb");
+        fread(vcf_content + r.begin(), 1, r.end() - r.begin(), fp);
+        fclose(fp);
     });
 
     vcf_content[vcf_size] = 0;
