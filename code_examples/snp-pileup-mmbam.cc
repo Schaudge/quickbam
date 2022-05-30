@@ -207,6 +207,7 @@ int main(int argc, char** argv) {
     // setup TBB
     if(argc > 4) n_threads = atoi(argv[4]);
     tbb::task_scheduler_init t_init(n_threads);
+    std::cerr<<"n_threads = "<<n_threads<<std::endl;
     
     auto clk_start = std::chrono::high_resolution_clock::now();
     timestamp(clk_start, "started");
@@ -355,8 +356,9 @@ void load_vcf(std::vector<vcf_record>& records, std::vector<std::pair<size_t, si
     char *vcf_content = (char *)malloc(vcf_size+1);
     auto vcf_mf = mfile_open(filename);
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, vcf_size, vcf_size / n_threads), [&](tbb::blocked_range<size_t>& r) {
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, vcf_size, 32 * 1024 * 1024), [&](tbb::blocked_range<size_t>& r) {
         //memcpy(vcf_content+r.begin(), begin(vcf_mf) +r.begin(), r.end() - r.begin());
+        std::cerr<<"read vcf "<<r.begin() <<" - "<<r.end()<<std::endl;
         FILE *fp = fopen(filename, "rb");
         fseek(fp, r.begin(), SEEK_SET);
         fread(vcf_content + r.begin(), 1, r.end() - r.begin(), fp);

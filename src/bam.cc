@@ -166,6 +166,18 @@ int16_t bam_query_length(const bam_rec_t* b) {
 	return ql;
 }
 
+template<class T, class V>
+bool extend_buffer(T& bgzf_it, T& bgzf_end, V& buffer, size_t min_size) {
+    if(buffer.size() >= min_size) return true;
+    if(bgzf_it == bgzf_end) return false;
+    while(bgzf_it < bgzf_end && buffer.size() < min_size) {
+        auto inflated = bgzf_inflate(*bgzf_it);
+        bgzf_it++;
+        buffer.insert(buffer.end(), inflated.cbegin(), inflated.cend());
+    }
+    return buffer.size() >= min_size;
+}
+
 std::vector<uint8_t> bam_load_region(const mfile_t::ptr_t& mfile, const index_t& index, int32_t ref_id, int32_t region_start, int32_t region_end) {
 
     if(ref_id >= index.n_ref) throw std::runtime_error("reference not found");
@@ -187,17 +199,11 @@ std::vector<uint8_t> bam_load_region(const mfile_t::ptr_t& mfile, const index_t&
     if(end_intv > index.ref[ref_id].n_intv - 1)
         end_intv = index.ref[ref_id].n_intv - 1;
 
-    //std::cout<<"[bam::bam_load_region] loading chunks "<<start_intv<<" - "<<end_intv<<std::endl;
-    //std::cout<<"[bam::bam_load_region] bytes "<<index.ref[ref_id].ioffset[start_intv];
-    //std::cout<<" - "<<index.ref[ref_id].ioffset[end_intv]<<std::endl;
-
     // load bgzf block in batch
     std::vector<uint8_t> bam_buffer_preload = bam_load_block(
             mfile,
             index.ref[ref_id].ioffset[start_intv],
             index.ref[ref_id].ioffset[end_intv]);
-
-    //std::cout<<"[bam_load_region] preload buffer size: "<<bam_buffer_preload.size()<<std::endl;
 
     auto bam_iter = reinterpret_cast<const bam_rec_t *>(bam_buffer_preload.data());
     auto buffer_end = bam_buffer_preload.data() + bam_buffer_preload.size();
@@ -207,15 +213,11 @@ std::vector<uint8_t> bam_load_region(const mfile_t::ptr_t& mfile, const index_t&
         auto bam_next = BYTEREF(bam_iter) + bam_iter->block_size + 4;
         // reads returned. See if the region is contained
         while(bam_next < buffer_end) {
-            //std::cout<<"[bam_load_region] read flag "<<bam_iter->flag <<std::endl;
-            //std::cout<<"[bam_load_region] read name length"<<(int)bam_iter->l_read_name<<std::endl;
-            //std::cout<<"[bam_load_region] checking read "<<bam_iter->pos<<"-"<<bam_iter->pos + bam_query_length(bam_iter)<<std::endl;
             if( READ_IN_REGION(bam_iter, region_start, region_end) && first_in_region == -1) {
                 first_in_region = BYTEREF(bam_iter) - bam_buffer_preload.data();
             }
             if(bam_iter->ref_id != ref_id || bam_iter->pos >= region_end) {
                 if(first_in_region == -1) {
-                    //std::cout<<"[bam_load_region] region exausted without finding first in region"<<std::endl;
                     return std::vector<uint8_t>();
                 }
                 return std::vector<uint8_t>(
@@ -237,36 +239,53 @@ std::vector<uint8_t> bam_load_region(const mfile_t::ptr_t& mfile, const index_t&
     std::vector<uint8_t> bam_buffer;
 
     bool found_outbound = false;
+    size_t next_offset = index_uoffset(ioffset);
 
-    size_t prev_offset = index_uoffset(ioffset);
+    
 
     while(bgzf_it < bgzf_end && !found_outbound) {
-        auto inflated = bgzf_inflate(*bgzf_it);
-        bgzf_it++;
+        bam_iter = reinterpret_cast<const bam_rec_t *>(bam_buffer.data() + next_offset);
 
-        bam_buffer.insert(bam_buffer.end(), inflated.cbegin(), inflated.cend());
+        // make sure buffer contains block_size of current read
+        size_t min_size = next_offset + 4;
+        extend_buffer(bgzf_it, bgzf_end, bam_buffer, min_size);
+        bam_iter = reinterpret_cast<const bam_rec_t *>(bam_buffer.data() + next_offset);
 
-        bam_iter = reinterpret_cast<const bam_rec_t *>(bam_buffer.data() + prev_offset);
-        decltype(bam_iter) bam_prev;
+        // make sure buffer contains current read
+        min_size += bam_iter->block_size + 4;
+        extend_buffer(bgzf_it, bgzf_end, bam_buffer, min_size);
+        bam_iter = reinterpret_cast<const bam_rec_t *>(bam_buffer.data() + next_offset);
+
+        // try to find out-of-bound read in bam_buffer
+        //decltype(bam_iter) bam_prev;
         auto buffer_end = bam_buffer.data() + bam_buffer.size();
-        while(BYTEREF(bam_iter)+4 < buffer_end) {
-            if(BYTEREF(BAM_NEXT(bam_iter)) >= buffer_end) {
-                bam_prev = bam_iter;
+
+        // loop while current read is within buffer
+        while(true) {
+            if(BYTEREF(bam_iter) + 4 >= buffer_end) break; // read block size is out of bound
+            if(BYTEREF(bam_iter) + bam_iter->block_size + 4 >= buffer_end) break; // read end is out of bound
+
+            // read is within buffer
+            if(bam_iter->ref_id != ref_id || bam_iter->pos >= region_end) {
+                found_outbound = true;
                 break;
             }
             if( READ_IN_REGION(bam_iter, region_start, region_end) && first_in_region == -1 ) {
                 first_in_region = BYTEREF(bam_iter) - bam_buffer.data() - index_uoffset(ioffset);
             }
-            if(bam_iter->ref_id != ref_id || bam_iter->pos >= region_end) {
-                found_outbound = true;
-                break;
-            }
-            bam_prev = bam_iter;
+
+            //if(BYTEREF(BAM_NEXT(bam_iter)) >= buffer_end) break; // next read out of bound{
+            //    bam_prev = bam_iter;
+            //    break;
+            //}
+            //bam_prev = bam_iter;
+
             bam_iter = BAM_NEXT(bam_iter);
         }
 
         // did not find out-of-bound read, readjust prev_offset
-        prev_offset = BYTEREF(bam_prev) - bam_buffer.data();
+        //prev_offset = BYTEREF(bam_prev) - bam_buffer.data();
+        next_offset = BYTEREF(bam_iter) - bam_buffer.data(); // calculate next read offset
     }
     
     // concatenate preload buffer with bam_buffer(offset with first uoffset
