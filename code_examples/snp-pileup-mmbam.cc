@@ -358,12 +358,12 @@ void load_vcf(std::vector<vcf_record>& records, std::vector<std::pair<size_t, si
     tbb::parallel_for(tbb::blocked_range<size_t>(0, vcf_size, vcf_size / n_threads), [&](tbb::blocked_range<size_t>& r) {
         //memcpy(vcf_content+r.begin(), begin(vcf_mf) +r.begin(), r.end() - r.begin());
         FILE *fp = fopen(filename, "rb");
+        fseek(fp, r.begin(), SEEK_SET);
         fread(vcf_content + r.begin(), 1, r.end() - r.begin(), fp);
         fclose(fp);
     });
 
     vcf_content[vcf_size] = 0;
-
 
     // sample 1% of the vcf buffer to estimate number of lines
     char *l_begin = vcf_content;
