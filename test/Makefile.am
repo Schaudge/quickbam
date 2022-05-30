@@ -1,7 +1,9 @@
+if HAS_GTEST
+
 check_PROGRAMS = all_tests
 TESTS = $(check_PROGRAMS)
 
-GTEST_LIBS = -lgtest_main -lgtest
+GTEST_LIBS=-lgtest -lgtest_main
 
 AM_CPPFLAGS=-I$(top_srcdir)/src
 AM_CXXFLAGS=$(GTEST_CFLAGS) $(PTHREAD_CFLAGS)
@@ -13,3 +15,5 @@ LDADD=$(GTEST_LIBS) ../src/libmmbam.la -ldeflate -ltbb $(PTHREAD_LIBS)
 #index_test_SOURCES = index_test.cc
 
 all_tests_SOURCES = mfile_test.cc mbgzf_test.cc index_test.cc bam_test.cc mpileup_test.cc
+
+endif

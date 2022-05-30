@@ -90,10 +90,6 @@ std::vector<uint8_t> bgzf_inflate_range_p(const uint8_t *src, const size_t src_l
             size_t (*inflate)(const uint8_t*, size_t, uint8_t*, size_t))>& parallel_inflate) {
     if(src_len == 0) return std::vector<uint8_t>();
 
-    // pre-load src buffer
-    //std::vector<uint8_t> src_buffer(src, src+src_len);
-    //src = src_buffer.data();
-
     // iterate over bgzf blocks to identify
     // 1. total decompression size
     // 2. each block's starting address and length
