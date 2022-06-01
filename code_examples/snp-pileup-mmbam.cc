@@ -358,7 +358,6 @@ void load_vcf(std::vector<vcf_record>& records, std::vector<std::pair<size_t, si
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, vcf_size, 32 * 1024 * 1024), [&](tbb::blocked_range<size_t>& r) {
         //memcpy(vcf_content+r.begin(), begin(vcf_mf) +r.begin(), r.end() - r.begin());
-        std::cerr<<"read vcf "<<r.begin() <<" - "<<r.end()<<std::endl;
         FILE *fp = fopen(filename, "rb");
         fseek(fp, r.begin(), SEEK_SET);
         fread(vcf_content + r.begin(), 1, r.end() - r.begin(), fp);
