@@ -72,8 +72,6 @@ std::vector<uint8_t> bam_load_block(const mfile_t::ptr_t& mfile, uint64_t ioffse
     //        begin<const uint8_t>(mfile) + coffset_first,
     //        coffset_last - coffset_first);
 
-    //std::cout<<"sequential decompressed "<<inflated_bytes_s.size()<<std::endl;
-
     /**** PARALLEL DECOMPRESSION ****/
     auto inflated_bytes = bgzf_inflate_range_p(
             begin<const uint8_t>(mfile) + coffset_first,
@@ -82,17 +80,11 @@ std::vector<uint8_t> bam_load_block(const mfile_t::ptr_t& mfile, uint64_t ioffse
         auto& src_off_vector, auto& dest_off_vector,
         auto inflate) -> std::vector<uint8_t> {
 
-        //std::cout<<"starting parallel decompression jobs"<<std::endl;
-        //std::cout<<"total buffer out size = "<<dest_len<<std::endl;
-
         std::vector<uint8_t> buffer;
         buffer.resize(dest_len);
 
         tbb::parallel_for(tbb::blocked_range<size_t>(0, src_off_vector.size()), [&](const auto& r){
 
-            //std::cout<<"inflate job "<<r.begin()<<" - "<<r.end()<<" / "<<src_off_vector.size()<<std::endl;
-
-            //auto sl = ( r.end() == src_off_vector.size() ? src_len : src_off_vector[r.end()] ) - src_off_vector[r.begin()];
             auto sl = r.end() == src_off_vector.size() ? 
                     src_len                 - src_off_vector[r.begin()] : 
                     src_off_vector[r.end()] - src_off_vector[r.begin()];
@@ -101,27 +93,12 @@ std::vector<uint8_t> bam_load_block(const mfile_t::ptr_t& mfile, uint64_t ioffse
                     dest_len                 - dest_off_vector[r.begin()] :
                     dest_off_vector[r.end()] - dest_off_vector[r.begin()];
 
-            //std::cout<<"inflating "<<src_off_vector[r.begin()]<<" to "<<src_off_vector[r.begin()] + sl;
-            //std::cout<<" into "<<dest_off_vector[r.begin()] <<" to "<<dest_off_vector[r.begin()] + dl<<std::endl;
-
             inflate(src+src_off_vector[r.begin()], sl, &buffer[dest_off_vector[r.begin()]], dl);
 
         });
 
         return buffer;
     });
-
-    //std::cout<<"sequential inflated "<<inflated_bytes_s.size()<<" bytes"<<std::endl;
-    //std::cout<<"parallel   inflated "<<inflated_bytes.size()<<" bytes"<<std::endl;
-
-    //for(size_t i=0; i<inflated_bytes_s.size(); i++) {
-    //    if(inflated_bytes_s[i] != inflated_bytes[i]) {
-    //        std::cout<<"sequential and parallel differs at byte "<<i<<std::endl;
-    //        exit(1);
-    //    }
-    //}
-    //exit(0);
-
 
     if(coffset_last < mfile->size) {
         auto last_block = bgzf_inflate(*bgzf_block_last);
