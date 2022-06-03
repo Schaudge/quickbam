@@ -18,7 +18,7 @@ struct pileup_info_t {
     bool is_deletion; /**< whether the read contains a deletion at the piled up position */
 };
 
-#define PILEUP_MAX_DEPTH 4000
+#define PILEUP_MAX_DEPTH 80000
 
 //! Information about a piled up location, produced by the mpileup engine and offered to the visitor function as a parameter
 struct mpileup_t {

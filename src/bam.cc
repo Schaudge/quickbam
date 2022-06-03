@@ -146,24 +146,24 @@ size_t bam_count_records(const std::vector<uint8_t>& buffer) {
 }
 
 int16_t bam_query_length(const bam_rec_t* b) {
-	uint32_t ql = 0;
-	const uint32_t *cigar_ops = (const uint32_t *)(
-			(const uint8_t *)(b)
-			+ sizeof(bam_rec_t)
-			+ sizeof(char) * b->l_read_name );
-	for(int op = 0; op < b->n_cigar_op; op++) {
-		switch(cigar_ops[op] & 0xF) {
-			case 0: // M
-			case 2: // D
-			case 7: // =
-			case 8: // X
-				ql += cigar_ops[op] >> 4;
-				break;
-			default:
-				break;
-		}
-	}
-	return ql;
+    uint32_t ql = 0;
+    const uint32_t *cigar_ops = (const uint32_t *)(
+            (const uint8_t *)(b)
+            + sizeof(bam_rec_t)
+            + sizeof(char) * b->l_read_name );
+    for(int op = 0; op < b->n_cigar_op; op++) {
+        switch(cigar_ops[op] & 0xF) {
+            case 0: // M
+            case 2: // D
+            case 7: // =
+            case 8: // X
+                ql += cigar_ops[op] >> 4;
+                break;
+            default:
+                break;
+        }
+    }
+    return ql;
 }
 
 template<class T, class V>

@@ -14,7 +14,7 @@
 #define BYTEREF(b) ((const uint8_t*)(b))
 #define BAMREF(b)  ((const bam_rec_t *)(b))
 #define BAM_NEXT(b) (BAMREF(BYTEREF(b) + (b)->block_size + 4))
-#define READ_IN_REGION(b, rbegin, rend) ((b)->pos < (rend) && (b)->pos + bam_query_length(b) > (rbegin))
+#define READ_IN_REGION(b, rbegin, rend) ((b)->pos < (rend) && (b)->pos + bam_query_length(b) >= (rbegin))
 
 #define READ_PAIRED 0x1
 #define READ_MAPPED_PROPER_PAIR 0x2

@@ -77,5 +77,5 @@ TEST(INDEX, GetsAllReadsOverAPosition) {
         hits++;
         bam_it++;
     }
-    EXPECT_EQ(hits, 87);
+    EXPECT_EQ(hits, 88);
 }
