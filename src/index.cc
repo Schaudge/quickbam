@@ -32,7 +32,7 @@ std::vector<region> index_to_regions(const index_t& index, uint64_t filesize) {
             }
 
             block_end = index.ref[i_ref].ioffset[i_intv];
-            if(block_end != block_start) {
+            if(block_end > block_start) {
                 regions.push_back({block_start, block_end});
                 block_start = block_end;
             }
