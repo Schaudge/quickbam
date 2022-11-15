@@ -164,8 +164,8 @@ std::vector<uint8_t> bam_load_block(T byte_provider, uint64_t ioffset_first, uin
 
     auto ptr = byte_provider.get_range_ptr(coffset_first, coffset_last);
 
-    auto bgzf_block_first = reinterpret_cast<const bgzf_block_t*>(ptr);
-    auto bgzf_block_last = reinterpret_cast<const bgzf_block_t*>(ptr + (coffset_last - coffset_first));
+    auto bgzf_block_first = reinterpret_cast<const bgzf_block_t*>(ptr.get());
+    auto bgzf_block_last = reinterpret_cast<const bgzf_block_t*>(ptr.get() + (coffset_last - coffset_first));
 
     // special case: coffsets are the same
     if(coffset_first == coffset_last) {
@@ -195,7 +195,7 @@ std::vector<uint8_t> bam_load_block(T byte_provider, uint64_t ioffset_first, uin
     /**** PARALLEL DECOMPRESSION ****/
     auto inflated_bytes = bgzf_inflate_range_p(
             //begin<const uint8_t>(mfile) + coffset_first,
-            ptr,
+            ptr.get(),
             coffset_last - coffset_first, [](
         auto* src, auto src_len, auto dest_len,
         auto& src_off_vector, auto& dest_off_vector,
@@ -226,10 +226,7 @@ std::vector<uint8_t> bam_load_block(T byte_provider, uint64_t ioffset_first, uin
         inflated_bytes.insert(inflated_bytes.end(), last_block.cbegin(), last_block.cbegin() + uoffset_last);
     }
 
-    byte_provider.free_range_ptr(ptr);
-
     return std::vector<uint8_t>(inflated_bytes.cbegin() + uoffset_first, inflated_bytes.cend());
-    
 }
 
 //! Helper function to load all bam records from a specific genomic region

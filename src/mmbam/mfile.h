@@ -79,6 +79,12 @@ const T* end(const mfile_t::ptr_t& mfile) noexcept {
     return reinterpret_cast<T*>(mfile->mmptr + mfile->size);
 }
 
+// no-op deleter to avoid unique_ptr trying to free the mmap pointer
+struct mfile_deleter{  
+    void operator()(const uint8_t[]) {
+    }
+};
+
 
 struct mfile_byte_provider_t {
     mfile_t::ptr_t& mfile;
@@ -87,11 +93,11 @@ struct mfile_byte_provider_t {
     {
     }
 
-    const uint8_t* get_range_ptr(uint64_t start, uint64_t) {
-        return begin<const uint8_t>(mfile) + start;
+    std::unique_ptr<const uint8_t[], mfile_deleter> get_range_ptr(uint64_t start, uint64_t) {
+        auto buf = begin<const uint8_t>(mfile) + start;
+        std::unique_ptr<const uint8_t[], mfile_deleter> ptr(buf);
+        return std::move(ptr);
     }
-
-    void free_range_ptr(const uint8_t* ptr) {}
 
     size_t size() {
         return mfile->size;
@@ -112,16 +118,12 @@ struct pread_byte_provider_t {
         fd = open(file_path.c_str(), O_RDONLY);
     }
 
-    const uint8_t* get_range_ptr(uint64_t start, uint64_t end) {
+    std::unique_ptr<const uint8_t[]> get_range_ptr(uint64_t start, uint64_t end) {
         const uint64_t PADDING = 256*1024;
         const size_t range_size = end - start + PADDING;
-        auto buf = new uint8_t[range_size];
-        auto n_read = pread(fd, buf, range_size, start);
-        return buf;
-    }
-
-    void free_range_ptr(const uint8_t* ptr) {
-        delete[] ptr;
+        std::unique_ptr<uint8_t[]> buf(new uint8_t[range_size]);
+        auto n_read = pread(fd, buf.get(), range_size, start);
+        return std::move(buf);
     }
 
     size_t size() {
