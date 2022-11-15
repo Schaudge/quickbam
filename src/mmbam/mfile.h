@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <iostream>
 
+
+
 /*! Memory mapped file managed by C++ smart-pointer */
 struct mfile_t {
     int fd;         /**< file descriptor of the underlying file */
@@ -76,5 +78,57 @@ template <typename T = char>
 const T* end(const mfile_t::ptr_t& mfile) noexcept {
     return reinterpret_cast<T*>(mfile->mmptr + mfile->size);
 }
+
+
+struct mfile_byte_provider_t {
+    mfile_t::ptr_t& mfile;
+
+    mfile_byte_provider_t(mfile_t::ptr_t& mfile) : mfile(mfile)
+    {
+    }
+
+    const uint8_t* get_range_ptr(uint64_t start, uint64_t) {
+        return begin<const uint8_t>(mfile) + start;
+    }
+
+    void free_range_ptr(const uint8_t* ptr) {}
+
+    size_t size() {
+        return mfile->size;
+    }
+};
+
+struct pread_byte_provider_t {
+
+    size_t file_size;
+    int fd;
+
+    pread_byte_provider_t(std::string file_path)
+    {
+        struct stat stat_;
+        auto rc = stat(file_path.c_str(), &stat_);
+        file_size = stat_.st_size;
+
+        fd = open(file_path.c_str(), O_RDONLY);
+    }
+
+    const uint8_t* get_range_ptr(uint64_t start, uint64_t end) {
+        const uint64_t PADDING = 256*1024;
+        const size_t range_size = end - start + PADDING;
+        auto buf = new uint8_t[range_size];
+        auto n_read = pread(fd, buf, range_size, start);
+        return buf;
+    }
+
+    void free_range_ptr(const uint8_t* ptr) {
+        delete[] ptr;
+    }
+
+    size_t size() {
+        return file_size;
+    }
+};
+
+
 
 #endif

@@ -64,7 +64,8 @@ void mpileup(std::vector<std::reference_wrapper<const mfile_t::ptr_t>> mfiles,
     std::vector<std::vector<uint8_t>> m_buffers(n_files);
     std::vector<size_t> m_buffer_offsets(n_files, 0);
     for(size_t i=0; i<n_files; i++) {
-        m_buffers[i] = bam_load_region(mfiles[i], indices[i], ref_id, pos_start, pos_end);
+        //mfile_byte_provider_t byte_provider(mfiles[i]);
+        //m_buffers[i] = bam_load_region(byte_provider, mfiles[i], indices[i], ref_id, pos_start, pos_end);
     }
 
     // initialize pileup data structure
