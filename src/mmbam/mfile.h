@@ -87,9 +87,9 @@ struct mfile_deleter{
 
 
 struct mfile_byte_provider_t {
-    mfile_t::ptr_t& mfile;
+    const mfile_t::ptr_t& mfile;
 
-    mfile_byte_provider_t(mfile_t::ptr_t& mfile) : mfile(mfile)
+    mfile_byte_provider_t(const mfile_t::ptr_t& mfile) : mfile(mfile)
     {
     }
 
