@@ -134,8 +134,8 @@ inline static void flagstat_loop(bam_flagstat_t *s, const BAM_T& b)
     if (c->flag & BAM_FDUP) ++s->n_dup[w];
 }
 
-template<class PROV_T, class REGIONS_T>
-bam_flagstat_t *bam_flagstat_core(PROV_T byte_provider, const REGIONS_T& regions)
+template<class SLICEABLE_T, class REGIONS_T>
+bam_flagstat_t *bam_flagstat_core(SLICEABLE_T data, const REGIONS_T& regions)
 {
     bam_flagstat_t *s;
 
@@ -144,7 +144,7 @@ bam_flagstat_t *bam_flagstat_core(PROV_T byte_provider, const REGIONS_T& regions
 
     parallel_for(tbb::blocked_range<long>(0, regions.size()), [&](tbb::blocked_range<long>& r) {
         for(long i=r.begin(); i<r.end(); ++i) {
-            auto bam_records = bam_load_block(byte_provider, regions[i].first, regions[i].second);
+            auto bam_records = bam_load_block(data, regions[i].first, regions[i].second);
             auto bam_it_beg = bam_iterator(reinterpret_cast<const bam_rec_t*>(&bam_records[0]));
             auto bam_it_end = bam_iterator(reinterpret_cast<const bam_rec_t*>(&bam_records[0] + bam_records.size()));
             auto bam_it = bam_it_beg;
@@ -226,8 +226,8 @@ int main(int argc, char *argv[])
     tbb::task_scheduler_init scheduler(n);
     
     auto mfile = mfile_open(argv[1]);
-    //mfile_byte_provider_t byte_provider(mfile);
-    pread_byte_provider_t byte_provider(argv[1]);
+    //mfile_slicer_t data(mfile);
+    file_slicer_t data(argv[1]);
 
     auto index = index_read(std::ifstream(std::string(argv[1]) + ".bai"));
 
@@ -237,13 +237,13 @@ int main(int argc, char *argv[])
         return 1;
     }*/
 
-    auto regions = index_to_regions(index, byte_provider.size());
+    auto regions = index_to_regions(index, data.size());
 
     index_free(index);
 
 
     //s = bam_flagstat_core(fp, header);
-    s = bam_flagstat_core(byte_provider, regions);
+    s = bam_flagstat_core(data, regions);
     if (s) {
         output_fmt(s, out_fmt);
         free(s);

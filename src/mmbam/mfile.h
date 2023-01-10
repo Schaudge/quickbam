@@ -86,14 +86,14 @@ struct mfile_deleter{
 };
 
 
-struct mfile_byte_provider_t {
+struct mfile_slicer_t {
     const mfile_t::ptr_t& mfile;
 
-    mfile_byte_provider_t(const mfile_t::ptr_t& mfile) : mfile(mfile)
+    mfile_slicer_t(const mfile_t::ptr_t& mfile) : mfile(mfile)
     {
     }
 
-    std::unique_ptr<const uint8_t[], mfile_deleter> get_range_ptr(uint64_t start, uint64_t) {
+    std::unique_ptr<const uint8_t[], mfile_deleter> slice(uint64_t start, uint64_t) {
         auto buf = begin<const uint8_t>(mfile) + start;
         std::unique_ptr<const uint8_t[], mfile_deleter> ptr(buf);
         return std::move(ptr);
@@ -104,12 +104,12 @@ struct mfile_byte_provider_t {
     }
 };
 
-struct pread_byte_provider_t {
+struct file_slicer_t {
 
     size_t file_size;
     int fd;
 
-    pread_byte_provider_t(std::string file_path)
+    file_slicer_t(std::string file_path)
     {
         struct stat stat_;
         auto rc = stat(file_path.c_str(), &stat_);
@@ -118,7 +118,7 @@ struct pread_byte_provider_t {
         fd = open(file_path.c_str(), O_RDONLY);
     }
 
-    std::unique_ptr<const uint8_t[]> get_range_ptr(uint64_t start, uint64_t end) {
+    std::unique_ptr<const uint8_t[]> slice(uint64_t start, uint64_t end) {
         const uint64_t PADDING = 256*1024;
         const size_t range_size = end - start + PADDING;
         std::unique_ptr<uint8_t[]> buf(new uint8_t[range_size]);

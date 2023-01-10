@@ -152,7 +152,7 @@ inline char byte2base_hi(const uint8_t base){
 //! \param ioffset_last the ioffset of the end of the region.
 //! \return a byte vector of all bam files contained in the region
 template<class T>
-std::vector<uint8_t> bam_load_block(T byte_provider, uint64_t ioffset_first, uint64_t ioffset_last) {
+std::vector<uint8_t> bam_load_block(T data, uint64_t ioffset_first, uint64_t ioffset_last) {
 
     if(ioffset_first == ioffset_last) return std::vector<uint8_t>();
 
@@ -162,7 +162,7 @@ std::vector<uint8_t> bam_load_block(T byte_provider, uint64_t ioffset_first, uin
     auto coffset_last = index_coffset(ioffset_last);
     auto uoffset_last = index_uoffset(ioffset_last);
 
-    auto ptr = byte_provider.get_range_ptr(coffset_first, coffset_last);
+    auto ptr = data.slice(coffset_first, coffset_last);
 
     auto bgzf_block_first = reinterpret_cast<const bgzf_block_t*>(ptr.get());
     auto bgzf_block_last = reinterpret_cast<const bgzf_block_t*>(ptr.get() + (coffset_last - coffset_first));
@@ -221,7 +221,7 @@ std::vector<uint8_t> bam_load_block(T byte_provider, uint64_t ioffset_first, uin
         return buffer;
     });
 
-    if(coffset_last < byte_provider.size()) {
+    if(coffset_last < data.size()) {
         auto last_block = bgzf_inflate(*bgzf_block_last);
         inflated_bytes.insert(inflated_bytes.end(), last_block.cbegin(), last_block.cbegin() + uoffset_last);
     }
@@ -238,7 +238,7 @@ std::vector<uint8_t> bam_load_block(T byte_provider, uint64_t ioffset_first, uin
 //! \param region_end The genomic coordinate of the end of the region
 //! \return A byte vector containing the bam records within the specified region
 template<class T>
-std::vector<uint8_t> bam_load_region(T byte_provider, const mfile_t::ptr_t& mfile, const index_t& index, int32_t ref_id, int32_t region_start, int32_t region_end) {
+std::vector<uint8_t> bam_load_region(T data, const mfile_t::ptr_t& mfile, const index_t& index, int32_t ref_id, int32_t region_start, int32_t region_end) {
 
     if(ref_id >= index.n_ref) throw std::runtime_error("reference not found");
     if(index.ref[ref_id].n_intv == 0) throw std::runtime_error("empty reference");
@@ -261,7 +261,7 @@ std::vector<uint8_t> bam_load_region(T byte_provider, const mfile_t::ptr_t& mfil
 
     // load bgzf block in batch
     std::vector<uint8_t> bam_buffer_preload = bam_load_block(
-            byte_provider,
+            data,
             index.ref[ref_id].ioffset[start_intv],
             index.ref[ref_id].ioffset[end_intv]);
 
