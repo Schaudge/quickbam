@@ -119,6 +119,8 @@ struct file_slicer_t {
     }
 
     std::unique_ptr<const uint8_t[]> slice(uint64_t start, uint64_t end) {
+        // TODO: Get rid of this padding. The caller should know exactly
+        // how many bytes it needs.
         const uint64_t PADDING = 256*1024;
         const size_t range_size = end - start + PADDING;
         std::unique_ptr<uint8_t[]> buf(new uint8_t[range_size]);
@@ -129,6 +131,8 @@ struct file_slicer_t {
     size_t size() {
         return file_size;
     }
+
+    bool operator==(const file_slicer_t& rhs) { return fd == rhs.fd && file_size == rhs.file_size; }
 };
 
 
