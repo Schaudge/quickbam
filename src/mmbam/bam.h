@@ -130,6 +130,8 @@ const uint8_t bam_c_hi = 0x20;
 const uint8_t bam_g_hi = 0x40;
 const uint8_t bam_t_hi = 0x80;
 
+const uint64_t MAX_BSIZE = 65536;
+
 
 
 inline char byte2base_lo(const uint8_t base) {
@@ -162,9 +164,12 @@ std::vector<uint8_t> bam_load_block(T data, uint64_t ioffset_first, uint64_t iof
     auto coffset_last = index_coffset(ioffset_last);
     auto uoffset_last = index_uoffset(ioffset_last);
 
-    // TODO: Figure out the exact size necessary for this padding.
-    const uint64_t PADDING = 256*1024;
-    auto ptr = data.slice(coffset_first, coffset_last + PADDING);
+    // TODO: We're adding MAX_BSIZE here because coffset_last represents the
+    // *beginning* of the last block. MAX_BSIZE guarantees we slice enough
+    // data to decompress the whole block. It might be better to read the
+    // block header and figure out exactly how much we need to read, but I'm
+    // guessing the extra IO might actually be slower.
+    auto ptr = data.slice(coffset_first, coffset_last + MAX_BSIZE);
 
     auto bgzf_block_first = reinterpret_cast<const bgzf_block_t*>(ptr.get());
     auto bgzf_block_last = reinterpret_cast<const bgzf_block_t*>(ptr.get() + (coffset_last - coffset_first));
