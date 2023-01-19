@@ -162,7 +162,9 @@ std::vector<uint8_t> bam_load_block(T data, uint64_t ioffset_first, uint64_t iof
     auto coffset_last = index_coffset(ioffset_last);
     auto uoffset_last = index_uoffset(ioffset_last);
 
-    auto ptr = data.slice(coffset_first, coffset_last);
+    // TODO: Figure out the exact size necessary for this padding.
+    const uint64_t PADDING = 256*1024;
+    auto ptr = data.slice(coffset_first, coffset_last + PADDING);
 
     auto bgzf_block_first = reinterpret_cast<const bgzf_block_t*>(ptr.get());
     auto bgzf_block_last = reinterpret_cast<const bgzf_block_t*>(ptr.get() + (coffset_last - coffset_first));
