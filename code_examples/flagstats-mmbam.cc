@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
 
     tbb::task_scheduler_init scheduler(n);
     
-    auto mfile = mfile_open(argv[1]);
+    //auto mfile = mfile_open(argv[1]);
     //mfile_slicer_t data(mfile);
     file_slicer_t data(argv[1]);
 
