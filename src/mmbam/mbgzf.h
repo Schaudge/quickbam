@@ -72,7 +72,7 @@ using bgzf_iterator_t = nfo_iterator<bgzf_block_t, uint16_t, bgzf_block_size_off
 template<typename SLICER_T>
 struct bgzf_slicer_iterator_t : std::iterator<std::forward_iterator_tag, bgzf_block_t> {
     SLICER_T data;
-    const uint8_t* current_block_slice;
+    typename SLICER_T::ptr_t current_block_slice;
     size_t current_offset;
     size_t current_block_size;
 
@@ -86,8 +86,7 @@ struct bgzf_slicer_iterator_t : std::iterator<std::forward_iterator_tag, bgzf_bl
 
         auto block_slice_start = current_offset;
         auto block_slice_end = current_offset + block_size;
-        auto owned_slice = data.slice(block_slice_start, block_slice_end);
-        current_block_slice = owned_slice.release();
+        current_block_slice = data.slice(block_slice_start, block_slice_end);
 
         // Special case for iterator end()
         if (current_offset != data.size()) {
@@ -98,8 +97,6 @@ struct bgzf_slicer_iterator_t : std::iterator<std::forward_iterator_tag, bgzf_bl
 
     void load_next_block() {
         current_offset += current_block_size;
-        delete[] current_block_slice;
-        current_block_slice = nullptr;
         current_block_size = 0;
         load_current_block();
     }
@@ -123,7 +120,7 @@ struct bgzf_slicer_iterator_t : std::iterator<std::forward_iterator_tag, bgzf_bl
         load_next_block();
         return *this;
     }
-    const bgzf_block_t& operator*() { return *reinterpret_cast<const bgzf_block_t*>(current_block_slice); }
+    const bgzf_block_t& operator*() { return *reinterpret_cast<const bgzf_block_t*>(current_block_slice.get()); }
 
     bool operator==(const bgzf_slicer_iterator_t& rhs) {
         return data == rhs.data && current_offset == rhs.current_offset;
