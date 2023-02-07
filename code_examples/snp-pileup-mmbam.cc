@@ -70,85 +70,85 @@ bool filter_predicate(const bam_rec_t& bam_rec) {
     return true;
 }
 
-void snp_mpileup(std::vector<vcf_record>& vcf_records,
-        const mfiles_t& mfiles, const indices_t& indices,
-        const std::vector<std::map<std::string, uint32_t>>& chr_tid_maps,
-        bool has_prefix, size_t batch_size = 10000) {
-
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, vcf_records.size(), batch_size), [&](tbb::blocked_range<size_t> r) {
-
-        size_t batch_first_idx = r.begin();
-        size_t batch_end_idx = r.end();
-
-        // as long as we haven't exausted our batch
-        while(batch_first_idx < batch_end_idx) {
-            auto curr_vcf  = vcf_records.begin() + batch_first_idx;
-            auto last_vcf  = vcf_records.begin() + batch_end_idx - 1;
-            // TODO: following can be replaced with binary search
-            while((curr_vcf->chrom != last_vcf->chrom || last_vcf->pos - curr_vcf->pos > 65536) && curr_vcf != last_vcf) {
-                batch_end_idx--;
-                last_vcf = vcf_records.begin() + (batch_end_idx - 1);
-            }
-
-            // from curr_vcf to last_vcf should be on the same chr
-            batch_first_idx = batch_end_idx; // setup next iteration
-
-            // reset batch-end
-            batch_end_idx = r.end(); 
-
-            auto batch_pos_start = curr_vcf->pos;
-            auto batch_pos_end = last_vcf->pos;
-
-            // pileup from curr_vcf to last_vcf
-            mpileup(mfiles, indices, chr_tid_maps[0].at(curr_vcf->chrom),
-                    curr_vcf->pos, last_vcf->pos + 1, filter_predicate,
-                    [&vcf_records, &curr_vcf, &last_vcf, &batch_pos_start, &batch_pos_end](const auto& p) {
-
-                //std::cout<<"PILEUP at "<<p.pos<<std::endl;
-
-                if(curr_vcf > last_vcf) return false;
-
-
-                // catch up vcf
-                while(p.pos > curr_vcf->pos && curr_vcf < last_vcf) curr_vcf++;
-
-                if(p.pos == curr_vcf->pos) {
-                    // update curr_vcf
-                    for(size_t i_file=0; i_file<2; i_file++) {
-                        curr_vcf->depth[i_file] = p.depth[i_file];
-                        
-                        auto* buffer_start = p.reads_buffer[i_file]->data();
-
-                        for(size_t i=0; i<p.depth[i_file]; i++) {
-                            auto& info = p.get_info(i_file, i);
-                            const bam_rec_t * bam_rec = BAMREF( buffer_start + info.offset);
-
-                            if(info.is_deletion) curr_vcf->del_count[i_file]++;
-                            else {
-                                if(bam_bqual_ptr(bam_rec)[info.qpos] < 1) continue;
-                                auto seq = bam_seq_ptr(bam_rec);
-                                uint8_t base = bam_unpack_base(seq, info.qpos);
-                                if(base == curr_vcf->ref) curr_vcf->ref_count[i_file]++;
-                                else if(base == curr_vcf->alt) curr_vcf->alt_count[i_file]++;
-                                else curr_vcf->err_count[i_file]++;
-                            }
-                        }
-                    }
-                    curr_vcf++;
-                }
-
-                if(p.ref_id == 20 && p.pos == 10808236 ) {
-                    std::cerr<<"visited in region "<<batch_pos_start<<" - "<<batch_pos_end<<std::endl;
-                    std::cerr<<"R: "<<curr_vcf->ref_count[0]<<","<<curr_vcf->ref_count[1]<<std::endl;;
-                }
-
-            return true;
-            });
-        }
-    });
-
-    
-}
+//void snp_mpileup(std::vector<vcf_record>& vcf_records,
+//        const mfiles_t& mfiles, const indices_t& indices,
+//        const std::vector<std::map<std::string, uint32_t>>& chr_tid_maps,
+//        bool has_prefix, size_t batch_size = 10000) {
+//
+//    tbb::parallel_for(tbb::blocked_range<size_t>(0, vcf_records.size(), batch_size), [&](tbb::blocked_range<size_t> r) {
+//
+//        size_t batch_first_idx = r.begin();
+//        size_t batch_end_idx = r.end();
+//
+//        // as long as we haven't exausted our batch
+//        while(batch_first_idx < batch_end_idx) {
+//            auto curr_vcf  = vcf_records.begin() + batch_first_idx;
+//            auto last_vcf  = vcf_records.begin() + batch_end_idx - 1;
+//            // TODO: following can be replaced with binary search
+//            while((curr_vcf->chrom != last_vcf->chrom || last_vcf->pos - curr_vcf->pos > 65536) && curr_vcf != last_vcf) {
+//                batch_end_idx--;
+//                last_vcf = vcf_records.begin() + (batch_end_idx - 1);
+//            }
+//
+//            // from curr_vcf to last_vcf should be on the same chr
+//            batch_first_idx = batch_end_idx; // setup next iteration
+//
+//            // reset batch-end
+//            batch_end_idx = r.end(); 
+//
+//            auto batch_pos_start = curr_vcf->pos;
+//            auto batch_pos_end = last_vcf->pos;
+//
+//            // pileup from curr_vcf to last_vcf
+//            mpileup(mfiles, indices, chr_tid_maps[0].at(curr_vcf->chrom),
+//                    curr_vcf->pos, last_vcf->pos + 1, filter_predicate,
+//                    [&vcf_records, &curr_vcf, &last_vcf, &batch_pos_start, &batch_pos_end](const auto& p) {
+//
+//                //std::cout<<"PILEUP at "<<p.pos<<std::endl;
+//
+//                if(curr_vcf > last_vcf) return false;
+//
+//
+//                // catch up vcf
+//                while(p.pos > curr_vcf->pos && curr_vcf < last_vcf) curr_vcf++;
+//
+//                if(p.pos == curr_vcf->pos) {
+//                    // update curr_vcf
+//                    for(size_t i_file=0; i_file<2; i_file++) {
+//                        curr_vcf->depth[i_file] = p.depth[i_file];
+//                        
+//                        auto* buffer_start = p.reads_buffer[i_file]->data();
+//
+//                        for(size_t i=0; i<p.depth[i_file]; i++) {
+//                            auto& info = p.get_info(i_file, i);
+//                            const bam_rec_t * bam_rec = BAMREF( buffer_start + info.offset);
+//
+//                            if(info.is_deletion) curr_vcf->del_count[i_file]++;
+//                            else {
+//                                if(bam_bqual_ptr(bam_rec)[info.qpos] < 1) continue;
+//                                auto seq = bam_seq_ptr(bam_rec);
+//                                uint8_t base = bam_unpack_base(seq, info.qpos);
+//                                if(base == curr_vcf->ref) curr_vcf->ref_count[i_file]++;
+//                                else if(base == curr_vcf->alt) curr_vcf->alt_count[i_file]++;
+//                                else curr_vcf->err_count[i_file]++;
+//                            }
+//                        }
+//                    }
+//                    curr_vcf++;
+//                }
+//
+//                if(p.ref_id == 20 && p.pos == 10808236 ) {
+//                    std::cerr<<"visited in region "<<batch_pos_start<<" - "<<batch_pos_end<<std::endl;
+//                    std::cerr<<"R: "<<curr_vcf->ref_count[0]<<","<<curr_vcf->ref_count[1]<<std::endl;;
+//                }
+//
+//            return true;
+//            });
+//        }
+//    });
+//
+//    
+//}
 
 std::map<std::string, uint32_t> parse_header(const mfile_t::ptr_t& mfile, const index_t& index, bool& bam_has_prefix) {
     // read header
@@ -216,6 +216,14 @@ int main(int argc, char** argv) {
     auto mfile1 = mfile_open(argv[2]);
     auto mfile2 = mfile_open(argv[3]);
 
+    auto slicer1 = mfile_slicer_t(mfile1);
+    auto slicer2 = mfile_slicer_t(mfile2);
+    std::vector<mfile_slicer_t> slicers{slicer1, slicer2};
+
+    //auto slicer1 = file_slicer_t(argv[2]);
+    //auto slicer2 = file_slicer_t(argv[3]);
+    //std::vector<file_slicer_t> slicers{slicer1, slicer2};
+
     auto index1 = index_read(std::ifstream(std::string(argv[2]) + ".bai"));
     auto index2 = index_read(std::ifstream(std::string(argv[3]) + ".bai"));
     
@@ -249,7 +257,7 @@ int main(int argc, char** argv) {
         //std::cout<<"Job: "<<curr_vcf->pos<<" - "<<last_vcf->pos<<std::endl;
 
         // pileup from curr_vcf to last_vcf
-        mpileup(mfiles, indices, chr_tid_maps[0].at(curr_vcf->chrom),
+        mpileup(mfiles, slicers, indices, chr_tid_maps[0].at(curr_vcf->chrom),
                 curr_vcf->pos, last_vcf->pos + 1, filter_predicate,
                 [&curr_vcf, &end_vcf](const auto& p) {
 

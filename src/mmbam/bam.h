@@ -236,6 +236,19 @@ std::vector<uint8_t> bam_load_block(T data, uint64_t ioffset_first, uint64_t iof
     return std::vector<uint8_t>(inflated_bytes.cbegin() + uoffset_first, inflated_bytes.cend());
 }
 
+template<class T, class V>
+bool extend_buffer(T& bgzf_it, T& bgzf_end, V& buffer, size_t min_size) {
+    if(buffer.size() >= min_size) return true;
+    if(bgzf_it == bgzf_end) return false;
+    while(bgzf_it != bgzf_end && buffer.size() < min_size) {
+        auto inflated = bgzf_inflate(*bgzf_it);
+        bgzf_it++;
+        buffer.insert(buffer.end(), inflated.cbegin(), inflated.cend());
+    }
+    return buffer.size() >= min_size;
+}
+
+
 //! Helper function to load all bam records from a specific genomic region
 //
 //! \param mfile The memory mapped BAM file
@@ -300,17 +313,16 @@ std::vector<uint8_t> bam_load_region(T data, const mfile_t::ptr_t& mfile, const 
     // last read is still within [region_start, region_end)
     // append data starting from end_intv
     auto ioffset = index.ref[ref_id].ioffset[end_intv];
-    auto bgzf_it = bgzf_iterator_at(mfile, index_coffset(ioffset));
-    auto bgzf_end = bgzf_iterator_at(mfile, mfile->size);
+    auto bgzf_it = bgzf_slicer_iterator_t<mfile_slicer_t>(data);
+    auto bgzf_end = bgzf_it.end();
 
     std::vector<uint8_t> bam_buffer;
 
     bool found_outbound = false;
     size_t next_offset = index_uoffset(ioffset);
 
-    
+    while(bgzf_it != bgzf_end && !found_outbound) {
 
-    while(bgzf_it < bgzf_end && !found_outbound) {
         bam_iter = reinterpret_cast<const bam_rec_t *>(bam_buffer.data() + next_offset);
 
         // make sure buffer contains block_size of current read
@@ -367,18 +379,6 @@ std::vector<uint8_t> bam_load_region(T data, const mfile_t::ptr_t& mfile, const 
             bam_buffer_preload.cbegin() + first_in_region,
             bam_buffer_preload.cend());
 
-}
-
-template<class T, class V>
-bool extend_buffer(T& bgzf_it, T& bgzf_end, V& buffer, size_t min_size) {
-    if(buffer.size() >= min_size) return true;
-    if(bgzf_it == bgzf_end) return false;
-    while(bgzf_it < bgzf_end && buffer.size() < min_size) {
-        auto inflated = bgzf_inflate(*bgzf_it);
-        bgzf_it++;
-        buffer.insert(buffer.end(), inflated.cbegin(), inflated.cend());
-    }
-    return buffer.size() >= min_size;
 }
 
 #endif
