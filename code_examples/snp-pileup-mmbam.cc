@@ -216,13 +216,13 @@ int main(int argc, char** argv) {
     auto mfile1 = mfile_open(argv[2]);
     auto mfile2 = mfile_open(argv[3]);
 
-    auto slicer1 = mfile_slicer_t(mfile1);
-    auto slicer2 = mfile_slicer_t(mfile2);
-    std::vector<mfile_slicer_t> slicers{slicer1, slicer2};
+    //auto slicer1 = mfile_slicer_t(mfile1);
+    //auto slicer2 = mfile_slicer_t(mfile2);
+    //std::vector<mfile_slicer_t> slicers{slicer1, slicer2};
 
-    //auto slicer1 = file_slicer_t(argv[2]);
-    //auto slicer2 = file_slicer_t(argv[3]);
-    //std::vector<file_slicer_t> slicers{slicer1, slicer2};
+    auto slicer1 = file_slicer_t(argv[2]);
+    auto slicer2 = file_slicer_t(argv[3]);
+    std::vector<file_slicer_t> slicers{slicer1, slicer2};
 
     auto index1 = index_read(std::ifstream(std::string(argv[2]) + ".bai"));
     auto index2 = index_read(std::ifstream(std::string(argv[3]) + ".bai"));

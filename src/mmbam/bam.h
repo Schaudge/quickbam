@@ -313,7 +313,7 @@ std::vector<uint8_t> bam_load_region(T data, const mfile_t::ptr_t& mfile, const 
     // last read is still within [region_start, region_end)
     // append data starting from end_intv
     auto ioffset = index.ref[ref_id].ioffset[end_intv];
-    auto bgzf_it = bgzf_slicer_iterator_t<mfile_slicer_t>(data);
+    auto bgzf_it = bgzf_slicer_iterator_t<T>(data, index_coffset(ioffset));
     auto bgzf_end = bgzf_it.end();
 
     std::vector<uint8_t> bam_buffer;
