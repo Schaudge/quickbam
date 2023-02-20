@@ -1,3 +1,9 @@
+if DEBUG
+AM_CXXFLAGS=-O0 -g
+else
+AM_CXXFLAGS=-O3
+endif
+
 pkginclude_HEADERS=mmbam/bam.h\
 				   mmbam/mbgzf.h\
 				   mmbam/mfile.h\

@@ -32,8 +32,6 @@ bool bam_buffer_contains_header(const std::vector<uint8_t>& buffer) {
     return true;
 };
 
-
-
 size_t bam_count_records(const std::vector<uint8_t>& buffer) {
     auto bam_it = bam_iterator(reinterpret_cast<const bam_rec_t*>(&buffer[0]));
     auto bam_it_beg = bam_iterator(reinterpret_cast<const bam_rec_t*>(&buffer[0]));
