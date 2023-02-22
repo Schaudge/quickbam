@@ -25,7 +25,7 @@
 #include <map>
 #include <regex>
 
-#include <tbb/task_scheduler_init.h>
+#include <tbb/global_control.h>
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_for_each.h>
 
@@ -33,8 +33,6 @@
 #include <mmbam/index.h>
 #include <mmbam/bam.h>
 #include <mmbam/mpileup.h>
-
-auto n_threads = tbb::task_scheduler_init::automatic;
 
 template<typename CLK> void timestamp(CLK& clk_start, const std::string& label) {
     auto clk_now = std::chrono::high_resolution_clock::now();
@@ -125,8 +123,14 @@ int main(int argc, char** argv) {
     // 3.1. Chromosome,Position,Ref,Alt,File1R,File1A,File1E,File1D,...
 
     // setup TBB
-    if(argc > 4) n_threads = atoi(argv[4]);
-    tbb::task_scheduler_init t_init(n_threads);
+    auto n_threads = tbb::global_control::active_value(tbb::global_control::max_allowed_parallelism);
+
+    if(argc>4) {
+        n_threads = atoi(argv[4]);
+    }
+
+    tbb::global_control global_limit(tbb::global_control::max_allowed_parallelism, n_threads);
+
     std::cerr<<"n_threads = "<<n_threads<<std::endl;
     
     auto clk_start = std::chrono::high_resolution_clock::now();
