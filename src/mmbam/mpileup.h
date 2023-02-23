@@ -50,15 +50,10 @@ struct mpileup_t {
         n_buffers = buffers;
         reads_buffer.resize(n_buffers);
         info = new pileup_info_t[n_buffers * PILEUP_MAX_DEPTH];
-        //info = alloc.allocate(n_buffers * PILEUP_MAX_DEPTH);
         depth = new size_t[n_buffers];
-        //std::cerr<<"pileup allocated "<<n_buffers<<" n_buffers"<<std::endl;
-        //info = tbb::scalable_allocator<pileup_info_t>(n_buffers * PILEUP_MAX_DEPTH);
-        //depth = tbb::scalable_allocator<size_t>(n_buffers);
     }
 
     void set_buffers(const std::vector<std::vector<uint8_t>>& buffers) {
-        //std::cerr<<"buffers set"<<std::endl;
         for(size_t i=0; i<n_buffers; i++) reads_buffer[i] = &buffers[i];
     }
 
@@ -70,12 +65,8 @@ struct mpileup_t {
     }
 
     void release() {
-        //std::cerr<<"pileup released"<<std::endl;
         if(info != nullptr) delete [] info;
-        //alloc.deallocate(info, reads_buffer.size() * PILEUP_MAX_DEPTH);
         if(depth != nullptr) delete [] depth;
-        //tbb::scalable_allocator<pileup_info_t>(info, reads_buffer.size() * PILEUP_MAX_DEPTH);
-        //tbb::scalable_allocator<size_t>(depth, reads_buffer.size());
     }
 
 };
@@ -322,7 +313,5 @@ void mpileup(std::vector<std::reference_wrapper<const mfile_t::ptr_t>> mfiles,
             return;
         }
     }
-
-    //release_mpileups(pileups);
 }
 #endif
