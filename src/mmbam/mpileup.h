@@ -84,21 +84,18 @@ struct thread_pileup_storage {
     mpileup_t pileups[400];
 
     thread_pileup_storage(size_t n_buffers) {
-        //std::cerr<<"ets allocating pileups"<<std::endl;
         for(size_t i=0; i<400; i++) {
             pileups[i].allocate(n_buffers);
         }
     }
 
     ~thread_pileup_storage() {
-        //std::cerr<<"ets releasing pileups"<<std::endl;
-        //for(size_t i=0; i<400; i++) {
-        //    pileups[i].release();
-        //}
+        for(size_t i=0; i<400; i++) {
+            pileups[i].release();
+        }
     }
 
     void set_buffers(const std::vector<std::vector<uint8_t>>& buffers) {
-        //std::cerr<<"ets setting buffers"<<std::endl;
         for(size_t i=0; i<400; i++) {
             pileups[i].set_buffers(buffers);
         }
@@ -148,21 +145,6 @@ const bam_rec_t* multi_buffer_next_read(
     return first_read;
 }
 
-mpileup_t* allocate_mpileups(const std::vector<std::vector<uint8_t>>& m_buffers) {
-    mpileup_t *pileups = new mpileup_t[400];
-    for(size_t i=0; i<400; i++) {
-        pileups[i].allocate(m_buffers.size());
-        pileups[i].set_buffers(m_buffers);
-
-    }
-    return pileups;
-}
-
-void release_mpileups(mpileup_t* pileups) {
-    for(size_t i=0; i<400; i++) pileups[i].release();
-    delete [] pileups;
-}
-
 //! Multiple input pileup engine
 //
 //! \param mfiles A list of input memory mapped BAM files
@@ -191,18 +173,13 @@ void mpileup(std::vector<std::reference_wrapper<const mfile_t::ptr_t>> mfiles,
     std::vector<std::vector<uint8_t>> m_buffers(n_files);
     std::vector<size_t> m_buffer_offsets(n_files, 0);
     for(size_t i=0; i<n_files; i++) {
-        //mfile_slicer_t data(mfiles[i]);
         m_buffers[i] = bam_load_region(slicers[i], mfiles[i], indices[i], ref_id, pos_start, pos_end);
     }
 
     // initialize pileup data structure
     bool exists;
-    auto this_ets = ets.local(exists);
-    //std::cerr<<"have existing ets object? "<<exists<<std::endl;
-    //std::cerr<<"acquired thread local storage object"<<std::endl;
-    //auto pileups = allocate_mpileups(m_buffers);
+    auto& this_ets = ets.local(exists);
     this_ets.set_buffers(m_buffers);
-    //std::cerr<<"set thread local storage buffers"<<std::endl;
     auto * pileups = &(this_ets.pileups[0]);
     int p_head = 0;
     int p_tail = 0;
@@ -218,7 +195,6 @@ void mpileup(std::vector<std::reference_wrapper<const mfile_t::ptr_t>> mfiles,
         while(p_head != p_tail) {
             if(pileups[p_head].ref_id < bam_it->ref_id || pileups[p_head].pos < bam_it->pos) {
                 if(!visitor_func(pileups[p_head])) {
-                    //release_mpileups(pileups);
                     return;
                 }
                 p_head++;
@@ -293,18 +269,12 @@ void mpileup(std::vector<std::reference_wrapper<const mfile_t::ptr_t>> mfiles,
                         if(p_iter != p_tail) {
                             mpileup_t *p = &pileups[p_iter];
                             if(p->depth[buffer_id] < PILEUP_MAX_DEPTH) {
-                                /*
                                 p->get_info(buffer_id, p->depth[buffer_id]++) = {
                                 .buffer_id = buffer_id,
                                 .offset = read_offset, 
                                 .qpos = qpos,
                                 .is_deletion = false};
-                                */
-                                auto& info = p->get_info(buffer_id, p->depth[buffer_id]++);
-                                info.buffer_id = buffer_id;
-                                info.offset = read_offset;
-                                info.qpos = qpos;
-                                info.is_deletion = false;
+                                
                             }
                             p_iter++;
                             if(p_iter == p_size) p_iter = 0;
@@ -345,12 +315,10 @@ void mpileup(std::vector<std::reference_wrapper<const mfile_t::ptr_t>> mfiles,
         if(p_head == p_tail) break;
 
         if(pileups[p_head].pos >= pos_end) {
-            //release_mpileups(pileups);
             return;
         }
 
         if(!visitor_func(pileups[p_head++])) {
-            //release_mpileups(pileups);
             return;
         }
     }
