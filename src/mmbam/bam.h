@@ -149,12 +149,12 @@ inline char byte2base_hi(const uint8_t base){
 };
 
 //! loads a block of bam records from a region
-//! \param mfile The memory mapped bam file
-//! \param ioffst_first the ioffset of the beginning of the region. ioffset is the virtual offset defined per SAM file specification, section 4.1.1
+//! \param data Slicer object which abstracts over the source BAM file.
+//! \param ioffset_first the ioffset of the beginning of the region. ioffset is the virtual offset defined per SAM file specification, section 4.1.1
 //! \param ioffset_last the ioffset of the end of the region.
 //! \return a byte vector of all bam files contained in the region
-template<class T>
-std::vector<uint8_t> bam_load_block(T data, uint64_t ioffset_first, uint64_t ioffset_last) {
+template<class SLICER_T>
+std::vector<uint8_t> bam_load_block(SLICER_T data, uint64_t ioffset_first, uint64_t ioffset_last) {
 
     if(ioffset_first == ioffset_last) return std::vector<uint8_t>();
 
@@ -169,10 +169,10 @@ std::vector<uint8_t> bam_load_block(T data, uint64_t ioffset_first, uint64_t iof
     // data to decompress the whole block. It might be better to read the
     // block header and figure out exactly how much we need to read, but I'm
     // guessing the extra IO might actually be slower.
-    auto ptr = data.slice(coffset_first, coffset_last + MAX_BSIZE);
+    auto slice = data.slice(coffset_first, coffset_last + MAX_BSIZE);
 
-    auto bgzf_block_first = reinterpret_cast<const bgzf_block_t*>(ptr.get());
-    auto bgzf_block_last = reinterpret_cast<const bgzf_block_t*>(ptr.get() + (coffset_last - coffset_first));
+    auto bgzf_block_first = reinterpret_cast<const bgzf_block_t*>(slice.get());
+    auto bgzf_block_last = reinterpret_cast<const bgzf_block_t*>(slice.get() + (coffset_last - coffset_first));
 
     // special case: coffsets are the same
     if(coffset_first == coffset_last) {
@@ -201,8 +201,7 @@ std::vector<uint8_t> bam_load_block(T data, uint64_t ioffset_first, uint64_t iof
 
     /**** PARALLEL DECOMPRESSION ****/
     auto inflated_bytes = bgzf_inflate_range_p(
-            //begin<const uint8_t>(mfile) + coffset_first,
-            ptr.get(),
+            slice.get(),
             coffset_last - coffset_first, [](
         auto* src, auto src_len, auto dest_len,
         auto& src_off_vector, auto& dest_off_vector,
@@ -251,14 +250,14 @@ bool extend_buffer(T& bgzf_it, T& bgzf_end, V& buffer, size_t min_size) {
 
 //! Helper function to load all bam records from a specific genomic region
 //
-//! \param mfile The memory mapped BAM file
+//! \param data Slicer object which abstracts over the source BAM file.
 //! \param index The index created on the BAM file
 //! \param reg_id The numerical id of the reference contig
 //! \param region_start The genomic coordinate of the start of the region
 //! \param region_end The genomic coordinate of the end of the region
 //! \return A byte vector containing the bam records within the specified region
-template<class T>
-std::vector<uint8_t> bam_load_region(T data, const mfile_t::ptr_t& mfile, const index_t& index, int32_t ref_id, int32_t region_start, int32_t region_end) {
+template<class SLICER_T>
+std::vector<uint8_t> bam_load_region(SLICER_T data, const index_t& index, int32_t ref_id, int32_t region_start, int32_t region_end) {
 
     if(ref_id >= index.n_ref) throw std::runtime_error("reference not found");
     if(index.ref[ref_id].n_intv == 0) throw std::runtime_error("empty reference");
@@ -313,7 +312,7 @@ std::vector<uint8_t> bam_load_region(T data, const mfile_t::ptr_t& mfile, const 
     // last read is still within [region_start, region_end)
     // append data starting from end_intv
     auto ioffset = index.ref[ref_id].ioffset[end_intv];
-    auto bgzf_it = bgzf_slicer_iterator_t<T>(data, index_coffset(ioffset));
+    auto bgzf_it = bgzf_slicer_iterator_t<SLICER_T>(data, index_coffset(ioffset));
     auto bgzf_end = bgzf_it.end();
 
     std::vector<uint8_t> bam_buffer;

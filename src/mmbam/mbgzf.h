@@ -69,6 +69,7 @@ inline bool is_bgzf_eof_block(const bgzf_block_t& block) {
 //! BGZF iterator, which is defined as a specialization of nfo_iterator_t
 using bgzf_iterator_t = nfo_iterator<bgzf_block_t, uint16_t, bgzf_block_size_offset, 1>;
 
+//! BGZF which takes its input from a slicer.
 template<typename SLICER_T>
 struct bgzf_slicer_iterator_t : std::iterator<std::forward_iterator_tag, bgzf_block_t> {
     SLICER_T data;

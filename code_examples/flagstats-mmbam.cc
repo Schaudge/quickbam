@@ -53,6 +53,7 @@ DEALINGS IN THE SOFTWARE.  */
 #include <mmbam/mbgzf.h>
 #include <mmbam/bam.h>
 #include <mmbam/index.h>
+#include <mmbam/slicer.h>
 
 // The following defs are taken from htslib/sam.h
 /*! @abstract the read is paired in sequencing, no matter whether it is mapped in a pair */

@@ -1,6 +1,7 @@
 #ifndef SLICER_H
 #define SLICER_H
 
+/*! Slicer type that abstracts over an mfile */
 struct mfile_slicer_t {
     using ptr_t = std::shared_ptr<const uint8_t[]>;
 
@@ -24,6 +25,7 @@ struct mfile_slicer_t {
     bool operator==(const mfile_slicer_t& rhs) { return mfile == rhs.mfile; }
 };
 
+/*! Slicer type that abstracts over a file */
 struct file_slicer_t {
 
     using ptr_t = std::shared_ptr<const uint8_t[]>;

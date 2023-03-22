@@ -4,6 +4,7 @@
 #include "mmbam/mfile.h"
 #include "mmbam/bam.h"
 #include "mmbam/index.h"
+#include "mmbam/slicer.h"
 
 // perform parallel read of a bam file.
 

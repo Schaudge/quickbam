@@ -33,6 +33,7 @@
 #include <mmbam/index.h>
 #include <mmbam/bam.h>
 #include <mmbam/mpileup.h>
+#include <mmbam/slicer.h>
 
 auto n_threads = tbb::task_scheduler_init::automatic;
 
@@ -70,6 +71,9 @@ bool filter_predicate(const bam_rec_t& bam_rec) {
     return true;
 }
 
+// TODO: Commented this out when switching to the slicer implementation. It
+// wasn't being used but was creating compilation errors. Need to figure out
+// what to do with it long term.
 //void snp_mpileup(std::vector<vcf_record>& vcf_records,
 //        const mfiles_t& mfiles, const indices_t& indices,
 //        const std::vector<std::map<std::string, uint32_t>>& chr_tid_maps,
@@ -227,7 +231,6 @@ int main(int argc, char** argv) {
     auto index1 = index_read(std::ifstream(std::string(argv[2]) + ".bai"));
     auto index2 = index_read(std::ifstream(std::string(argv[3]) + ".bai"));
     
-    mfiles_t mfiles{mfile1, mfile2};
     indices_t indices{index1, index2};
     
     std::vector<std::map<std::string, uint32_t>> chr_tid_maps(2);
@@ -257,7 +260,7 @@ int main(int argc, char** argv) {
         //std::cout<<"Job: "<<curr_vcf->pos<<" - "<<last_vcf->pos<<std::endl;
 
         // pileup from curr_vcf to last_vcf
-        mpileup(mfiles, slicers, indices, chr_tid_maps[0].at(curr_vcf->chrom),
+        mpileup(slicers, indices, chr_tid_maps[0].at(curr_vcf->chrom),
                 curr_vcf->pos, last_vcf->pos + 1, filter_predicate,
                 [&curr_vcf, &end_vcf](const auto& p) {
 

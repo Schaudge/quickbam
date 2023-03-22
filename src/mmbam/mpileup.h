@@ -119,7 +119,7 @@ void release_mpileups(mpileup_t* pileups) {
 
 //! Multiple input pileup engine
 //
-//! \param mfiles A list of input memory mapped BAM files
+//! \param slicers A list of input slicers which abstract over BAM files
 //! \param indices A list of indices of the input BAM files, order-matched
 //! \param ref_id The numerical reference contig id of the pileup region
 //! \param pos_start The genomic coordinate of the start of the pileup region
@@ -129,14 +129,13 @@ void release_mpileups(mpileup_t* pileups) {
 
 
 template <typename SLICER_T>
-void mpileup(std::vector<std::reference_wrapper<const mfile_t::ptr_t>> mfiles,
-        std::vector<SLICER_T> slicers,
+void mpileup(std::vector<SLICER_T> slicers,
         std::vector<std::reference_wrapper<const index_t>> indices,
         uint32_t ref_id, int32_t pos_start, int32_t pos_end,
         const std::function<bool(const bam_rec_t&)>& predicate_func,
         const std::function<bool(const mpileup_t&)>& visitor_func) {
 
-    const auto n_files = mfiles.size();
+    const auto n_files = slicers.size();
 
     if(n_files != indices.size()) throw std::runtime_error("number of files and indices mismatch");
 
@@ -144,8 +143,7 @@ void mpileup(std::vector<std::reference_wrapper<const mfile_t::ptr_t>> mfiles,
     std::vector<std::vector<uint8_t>> m_buffers(n_files);
     std::vector<size_t> m_buffer_offsets(n_files, 0);
     for(size_t i=0; i<n_files; i++) {
-        //mfile_slicer_t data(mfiles[i]);
-        m_buffers[i] = bam_load_region(slicers[i], mfiles[i], indices[i], ref_id, pos_start, pos_end);
+        m_buffers[i] = bam_load_region(slicers[i], indices[i], ref_id, pos_start, pos_end);
     }
 
     // initialize pileup data structure
