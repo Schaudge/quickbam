@@ -345,6 +345,7 @@ void load_vcf(std::vector<vcf_record>& records, std::vector<std::pair<size_t, si
 
         if(chr == NULL || pos == NULL || ref == NULL || alt == NULL) continue;
         if(ref - id > 2 || alt - ref > 2) continue; // retain only snps
+
         records.push_back({
                 .chrom = std::string(l_begin, chr),
                 .pos = (int32_t)strtol(chr+1, NULL, 0) - 1,
