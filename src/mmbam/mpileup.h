@@ -7,6 +7,7 @@
 #include <functional>
 #include "bam.h"
 #include "index.h"
+#include <tbb/enumerable_thread_specific.h>
 
 using pileup_filter_func_t = bool (*)(bam_rec_t* read);
 
@@ -18,7 +19,7 @@ struct pileup_info_t {
     bool is_deletion; /**< whether the read contains a deletion at the piled up position */
 };
 
-#define PILEUP_MAX_DEPTH 80000
+#define PILEUP_MAX_DEPTH 2000
 
 //! Information about a piled up location, produced by the mpileup engine and offered to the visitor function as a parameter
 struct mpileup_t {
@@ -27,6 +28,7 @@ struct mpileup_t {
     std::vector<const std::vector<uint8_t>*> reads_buffer; /**< The buffers (1 per file) of all reads */
     pileup_info_t *info; /**< additional, read-wise information at the piled up location, length= # of buffers * MAX_PILEUP_DEPTH */
     size_t *depth;       /**< number of reads overlapping this position, length = # of buffers */
+    size_t n_buffers;
 
     //! returns the correct info object
     //! \param b the index of the BAM file (or input buffer)
@@ -44,12 +46,15 @@ struct mpileup_t {
         return *(info + b * PILEUP_MAX_DEPTH + d);
     }
 
-    void allocate(const std::vector<std::vector<uint8_t>>& buffers) {
-        auto n_buffers = buffers.size();
+    void allocate(size_t buffers) {
+        n_buffers = buffers;
         reads_buffer.resize(n_buffers);
-        for(size_t i=0; i<n_buffers; i++) reads_buffer[i] = &buffers[i];
         info = new pileup_info_t[n_buffers * PILEUP_MAX_DEPTH];
         depth = new size_t[n_buffers];
+    }
+
+    void set_buffers(const std::vector<std::vector<uint8_t>>& buffers) {
+        for(size_t i=0; i<n_buffers; i++) reads_buffer[i] = &buffers[i];
     }
 
     void set_location(int32_t ref_id, int32_t pos, std::vector<std::vector<uint8_t>>& buffers)
@@ -66,6 +71,31 @@ struct mpileup_t {
 
 };
 
+struct thread_pileup_storage {
+    mpileup_t pileups[400];
+
+    thread_pileup_storage(size_t n_buffers) {
+        for(size_t i=0; i<400; i++) {
+            pileups[i].allocate(n_buffers);
+        }
+    }
+
+    ~thread_pileup_storage() {
+        for(size_t i=0; i<400; i++) {
+            pileups[i].release();
+        }
+    }
+
+    void set_buffers(const std::vector<std::vector<uint8_t>>& buffers) {
+        for(size_t i=0; i<400; i++) {
+            pileups[i].set_buffers(buffers);
+        }
+    }
+};
+
+tbb::enumerable_thread_specific<thread_pileup_storage> mpileup_ets() {
+    return tbb::enumerable_thread_specific<thread_pileup_storage>(2);
+}
 
 //! Type alias of multiple input mfile
 using mfiles_t = std::vector<std::reference_wrapper<const mfile_t::ptr_t>>;
@@ -106,17 +136,6 @@ const bam_rec_t* multi_buffer_next_read(
     return first_read;
 }
 
-mpileup_t* allocate_mpileups(const std::vector<std::vector<uint8_t>>& m_buffers) {
-    mpileup_t *pileups = new mpileup_t[400];
-    for(size_t i=0; i<400; i++) pileups[i].allocate(m_buffers);
-    return pileups;
-}
-
-void release_mpileups(mpileup_t* pileups) {
-    for(size_t i=0; i<400; i++) pileups[i].release();
-    delete [] pileups;
-}
-
 //! Multiple input pileup engine
 //
 //! \param slicers A list of input slicers which abstract over BAM files
@@ -131,6 +150,7 @@ void release_mpileups(mpileup_t* pileups) {
 template <typename SLICER_T>
 void mpileup(std::vector<SLICER_T> slicers,
         std::vector<std::reference_wrapper<const index_t>> indices,
+        tbb::enumerable_thread_specific<thread_pileup_storage>& ets,
         uint32_t ref_id, int32_t pos_start, int32_t pos_end,
         const std::function<bool(const bam_rec_t&)>& predicate_func,
         const std::function<bool(const mpileup_t&)>& visitor_func) {
@@ -147,7 +167,10 @@ void mpileup(std::vector<SLICER_T> slicers,
     }
 
     // initialize pileup data structure
-    auto pileups = allocate_mpileups(m_buffers);
+    bool exists;
+    auto& this_ets = ets.local(exists);
+    this_ets.set_buffers(m_buffers);
+    auto * pileups = &(this_ets.pileups[0]);
     int p_head = 0;
     int p_tail = 0;
     int p_size = 400;
@@ -162,7 +185,6 @@ void mpileup(std::vector<SLICER_T> slicers,
         while(p_head != p_tail) {
             if(pileups[p_head].ref_id < bam_it->ref_id || pileups[p_head].pos < bam_it->pos) {
                 if(!visitor_func(pileups[p_head])) {
-                    release_mpileups(pileups);
                     return;
                 }
                 p_head++;
@@ -242,6 +264,7 @@ void mpileup(std::vector<SLICER_T> slicers,
                                 .offset = read_offset, 
                                 .qpos = qpos,
                                 .is_deletion = false};
+                                
                             }
                             p_iter++;
                             if(p_iter == p_size) p_iter = 0;
@@ -282,16 +305,12 @@ void mpileup(std::vector<SLICER_T> slicers,
         if(p_head == p_tail) break;
 
         if(pileups[p_head].pos >= pos_end) {
-            release_mpileups(pileups);
             return;
         }
 
         if(!visitor_func(pileups[p_head++])) {
-            release_mpileups(pileups);
             return;
         }
     }
-
-    release_mpileups(pileups);
 }
 #endif

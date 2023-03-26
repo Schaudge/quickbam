@@ -47,7 +47,7 @@ DEALINGS IN THE SOFTWARE.  */
 
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
-#include <tbb/task_scheduler_init.h>
+#include <tbb/global_control.h>
 
 #include <mmbam/mfile.h>
 #include <mmbam/mbgzf.h>
@@ -221,10 +221,15 @@ int main(int argc, char *argv[])
         INPUT_FMT_OPTION = CHAR_MAX+1,
     };
 
-    int n = tbb::task_scheduler_init::default_num_threads();
-    if(argc>2) n = atoi(argv[2]);
+    auto n = tbb::global_control::active_value(tbb::global_control::max_allowed_parallelism);
 
-    tbb::task_scheduler_init scheduler(n);
+    if(argc>2) {
+        n = atoi(argv[2]);
+    }
+
+    tbb::global_control global_limit(tbb::global_control::max_allowed_parallelism, n);
+
+    //tbb::task_scheduler_init scheduler(n);
     
     //auto mfile = mfile_open(argv[1]);
     //mfile_slicer_t data(mfile);

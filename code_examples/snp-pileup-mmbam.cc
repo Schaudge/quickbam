@@ -25,7 +25,7 @@
 #include <map>
 #include <regex>
 
-#include <tbb/task_scheduler_init.h>
+#include <tbb/global_control.h>
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_for_each.h>
 
@@ -34,8 +34,6 @@
 #include <mmbam/bam.h>
 #include <mmbam/mpileup.h>
 #include <mmbam/slicer.h>
-
-auto n_threads = tbb::task_scheduler_init::automatic;
 
 template<typename CLK> void timestamp(CLK& clk_start, const std::string& label) {
     auto clk_now = std::chrono::high_resolution_clock::now();
@@ -70,89 +68,6 @@ bool filter_predicate(const bam_rec_t& bam_rec) {
 
     return true;
 }
-
-// TODO: Commented this out when switching to the slicer implementation. It
-// wasn't being used but was creating compilation errors. Need to figure out
-// what to do with it long term.
-//void snp_mpileup(std::vector<vcf_record>& vcf_records,
-//        const mfiles_t& mfiles, const indices_t& indices,
-//        const std::vector<std::map<std::string, uint32_t>>& chr_tid_maps,
-//        bool has_prefix, size_t batch_size = 10000) {
-//
-//    tbb::parallel_for(tbb::blocked_range<size_t>(0, vcf_records.size(), batch_size), [&](tbb::blocked_range<size_t> r) {
-//
-//        size_t batch_first_idx = r.begin();
-//        size_t batch_end_idx = r.end();
-//
-//        // as long as we haven't exausted our batch
-//        while(batch_first_idx < batch_end_idx) {
-//            auto curr_vcf  = vcf_records.begin() + batch_first_idx;
-//            auto last_vcf  = vcf_records.begin() + batch_end_idx - 1;
-//            // TODO: following can be replaced with binary search
-//            while((curr_vcf->chrom != last_vcf->chrom || last_vcf->pos - curr_vcf->pos > 65536) && curr_vcf != last_vcf) {
-//                batch_end_idx--;
-//                last_vcf = vcf_records.begin() + (batch_end_idx - 1);
-//            }
-//
-//            // from curr_vcf to last_vcf should be on the same chr
-//            batch_first_idx = batch_end_idx; // setup next iteration
-//
-//            // reset batch-end
-//            batch_end_idx = r.end(); 
-//
-//            auto batch_pos_start = curr_vcf->pos;
-//            auto batch_pos_end = last_vcf->pos;
-//
-//            // pileup from curr_vcf to last_vcf
-//            mpileup(mfiles, indices, chr_tid_maps[0].at(curr_vcf->chrom),
-//                    curr_vcf->pos, last_vcf->pos + 1, filter_predicate,
-//                    [&vcf_records, &curr_vcf, &last_vcf, &batch_pos_start, &batch_pos_end](const auto& p) {
-//
-//                //std::cout<<"PILEUP at "<<p.pos<<std::endl;
-//
-//                if(curr_vcf > last_vcf) return false;
-//
-//
-//                // catch up vcf
-//                while(p.pos > curr_vcf->pos && curr_vcf < last_vcf) curr_vcf++;
-//
-//                if(p.pos == curr_vcf->pos) {
-//                    // update curr_vcf
-//                    for(size_t i_file=0; i_file<2; i_file++) {
-//                        curr_vcf->depth[i_file] = p.depth[i_file];
-//                        
-//                        auto* buffer_start = p.reads_buffer[i_file]->data();
-//
-//                        for(size_t i=0; i<p.depth[i_file]; i++) {
-//                            auto& info = p.get_info(i_file, i);
-//                            const bam_rec_t * bam_rec = BAMREF( buffer_start + info.offset);
-//
-//                            if(info.is_deletion) curr_vcf->del_count[i_file]++;
-//                            else {
-//                                if(bam_bqual_ptr(bam_rec)[info.qpos] < 1) continue;
-//                                auto seq = bam_seq_ptr(bam_rec);
-//                                uint8_t base = bam_unpack_base(seq, info.qpos);
-//                                if(base == curr_vcf->ref) curr_vcf->ref_count[i_file]++;
-//                                else if(base == curr_vcf->alt) curr_vcf->alt_count[i_file]++;
-//                                else curr_vcf->err_count[i_file]++;
-//                            }
-//                        }
-//                    }
-//                    curr_vcf++;
-//                }
-//
-//                if(p.ref_id == 20 && p.pos == 10808236 ) {
-//                    std::cerr<<"visited in region "<<batch_pos_start<<" - "<<batch_pos_end<<std::endl;
-//                    std::cerr<<"R: "<<curr_vcf->ref_count[0]<<","<<curr_vcf->ref_count[1]<<std::endl;;
-//                }
-//
-//            return true;
-//            });
-//        }
-//    });
-//
-//    
-//}
 
 std::map<std::string, uint32_t> parse_header(const mfile_t::ptr_t& mfile, const index_t& index, bool& bam_has_prefix) {
     // read header
@@ -209,8 +124,14 @@ int main(int argc, char** argv) {
     // 3.1. Chromosome,Position,Ref,Alt,File1R,File1A,File1E,File1D,...
 
     // setup TBB
-    if(argc > 4) n_threads = atoi(argv[4]);
-    tbb::task_scheduler_init t_init(n_threads);
+    auto n_threads = tbb::global_control::active_value(tbb::global_control::max_allowed_parallelism);
+
+    if(argc>4) {
+        n_threads = atoi(argv[4]);
+    }
+
+    tbb::global_control global_limit(tbb::global_control::max_allowed_parallelism, n_threads);
+
     std::cerr<<"n_threads = "<<n_threads<<std::endl;
     
     auto clk_start = std::chrono::high_resolution_clock::now();
@@ -245,6 +166,7 @@ int main(int argc, char** argv) {
 
     std::vector<vcf_record> records;
     std::vector<std::pair<size_t, size_t>> work_ranges;
+    auto ets = mpileup_ets();
 
     load_vcf(records, work_ranges, argv[1], indices, chr_tid_maps);
 
@@ -257,14 +179,10 @@ int main(int argc, char** argv) {
         auto last_vcf = records.begin() + (r.second - 1);
         auto end_vcf = records.begin() + r.second;
 
-        //std::cout<<"Job: "<<curr_vcf->pos<<" - "<<last_vcf->pos<<std::endl;
-
         // pileup from curr_vcf to last_vcf
         mpileup(slicers, indices, chr_tid_maps[0].at(curr_vcf->chrom),
                 curr_vcf->pos, last_vcf->pos + 1, filter_predicate,
                 [&curr_vcf, &end_vcf](const auto& p) {
-
-            //std::cout<<"PILEUP got position "<<p.pos<<std::endl;
 
             // ignore earlier positions
             if(p.pos < curr_vcf->pos) return true;
@@ -284,6 +202,7 @@ int main(int argc, char** argv) {
                 for(size_t i_file=0; i_file<2; i_file++) {
                     curr_vcf->depth[i_file] = p.depth[i_file];
                     
+                    assert(p.reads_buffer.size() > i_file);
                     auto* buffer_start = p.reads_buffer[i_file]->data();
 
                     for(size_t i=0; i<p.depth[i_file]; i++) {
@@ -425,7 +344,8 @@ void load_vcf(std::vector<vcf_record>& records, std::vector<std::pair<size_t, si
         alt = strchr(ref+1, '\t');
 
         if(chr == NULL || pos == NULL || ref == NULL || alt == NULL) continue;
-        if(ref - id > 2 || alt - ref > 2) continue;
+        if(ref - id > 2 || alt - ref > 2) continue; // retain only snps
+
         records.push_back({
                 .chrom = std::string(l_begin, chr),
                 .pos = (int32_t)strtol(chr+1, NULL, 0) - 1,

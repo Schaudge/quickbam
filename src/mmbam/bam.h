@@ -11,6 +11,7 @@
 #include "mfile.h"
 #include "index.h"
 #include "mmbam/mbgzf.h"
+#include <tbb/task_arena.h>
 #include <tbb/parallel_for.h>
 
 #define BYTEREF(b) ((const uint8_t*)(b))
@@ -210,19 +211,24 @@ std::vector<uint8_t> bam_load_block(SLICER_T data, uint64_t ioffset_first, uint6
         std::vector<uint8_t> buffer;
         buffer.resize(dest_len);
 
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, src_off_vector.size()), [&](const auto& r){
+        tbb::this_task_arena::isolate([&] {
 
-            auto sl = r.end() == src_off_vector.size() ? 
-                    src_len                 - src_off_vector[r.begin()] : 
-                    src_off_vector[r.end()] - src_off_vector[r.begin()];
+            tbb::parallel_for(tbb::blocked_range<size_t>(0, src_off_vector.size()), [&](const auto& r){
 
-            auto dl = r.end() == dest_off_vector.size() ? 
-                    dest_len                 - dest_off_vector[r.begin()] :
-                    dest_off_vector[r.end()] - dest_off_vector[r.begin()];
+                auto sl = r.end() == src_off_vector.size() ? 
+                src_len                 - src_off_vector[r.begin()] : 
+                src_off_vector[r.end()] - src_off_vector[r.begin()];
 
-            inflate(src+src_off_vector[r.begin()], sl, &buffer[dest_off_vector[r.begin()]], dl);
+                auto dl = r.end() == dest_off_vector.size() ? 
+                dest_len                 - dest_off_vector[r.begin()] :
+                dest_off_vector[r.end()] - dest_off_vector[r.begin()];
 
+                inflate(src+src_off_vector[r.begin()], sl, &buffer[dest_off_vector[r.begin()]], dl);
+
+            });
         });
+
+        
 
         return buffer;
     });
