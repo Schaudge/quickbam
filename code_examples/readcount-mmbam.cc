@@ -4,6 +4,7 @@
 #include "mmbam/mfile.h"
 #include "mmbam/bam.h"
 #include "mmbam/index.h"
+#include "mmbam/slicer.h"
 
 // perform parallel read of a bam file.
 
@@ -17,18 +18,21 @@ int main(int argc, const char *const argv[]) {
     auto bam_filename = argv[1];
     auto bai_filename = argc < 3 ? std::string(argv[1]) + ".bai" : std::string(argv[2]);
 
-    auto mfile = mfile_open(bam_filename);
+    //auto mfile = mfile_open(bam_filename);
+    //mfile_slicer_t data(mfile);
+    file_slicer_t data(bam_filename);
     auto index = index_read(std::ifstream(bai_filename));
 
     uint64_t records = 0;
 
     // create iteration intervals
-    auto regions = index_to_regions(index, mfile->size);
+    auto regions = index_to_regions(index, data.size());
+
 
 #pragma omp parallel for reduction(+:records)
     for(size_t i=0; i<regions.size(); i++) {
         if(regions[i].first == regions[i].second) throw std::runtime_error("same region start and end");
-        auto bam_records = bam_load_block(mfile, regions[i].first, regions[i].second);
+        auto bam_records = bam_load_block(data, regions[i].first, regions[i].second);
         auto record_count = bam_count_records(bam_records);
         records += record_count;
     }

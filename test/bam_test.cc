@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include "mmbam/mfile.h"
 #include "mmbam/mbgzf.h"
 #include "mmbam/bam.h"
 #include "mmbam/index.h"
+#include "mmbam/slicer.h"
 #include <algorithm>
 #include <fstream>
 #include <stdio.h>
@@ -75,10 +75,10 @@ TEST(BAM, CanDecompressUsingTransform) {
 }
 
 TEST(BAM, CanDecompressOneInterval) {
-    auto mfile = mfile_open("data/chr10.100blks.bam");
+    file_slicer_t data("data/chr10.100blks.bam");
     auto index = index_read(std::ifstream("data/chr10.100blks.bam.bai"));
 
-    auto bam_records = bam_load_block(mfile, index.ref[9].ioffset[61], index.ref[9].ioffset[62]);
+    auto bam_records = bam_load_block(data, index.ref[9].ioffset[61], index.ref[9].ioffset[62]);
 
     size_t total_reads = bam_count_records(bam_records);
 
@@ -87,14 +87,14 @@ TEST(BAM, CanDecompressOneInterval) {
 }
 
 TEST(BAM, DecompressTwoIntervalEqualsTwoDecompression) {
-    auto mfile = mfile_open("data/chr10.100blks.bam");
+    file_slicer_t data("data/chr10.100blks.bam");
     auto index = index_read(std::ifstream("data/chr10.100blks.bam.bai"));
 
 
-    auto bam_records1 = bam_load_block(mfile, index.ref[9].ioffset[61], index.ref[9].ioffset[63]);
+    auto bam_records1 = bam_load_block(data, index.ref[9].ioffset[61], index.ref[9].ioffset[63]);
 
-    auto bam_records2_1 = bam_load_block(mfile, index.ref[9].ioffset[61], index.ref[9].ioffset[62]);
-    auto bam_records2_2 = bam_load_block(mfile, index.ref[9].ioffset[62], index.ref[9].ioffset[63]);
+    auto bam_records2_1 = bam_load_block(data, index.ref[9].ioffset[61], index.ref[9].ioffset[62]);
+    auto bam_records2_2 = bam_load_block(data, index.ref[9].ioffset[62], index.ref[9].ioffset[63]);
 
 
     bam_records2_1.insert(bam_records2_1.end(), bam_records2_2.begin(), bam_records2_2.end());

@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <iostream>
 
+
+
 /*! Memory mapped file managed by C++ smart-pointer */
 struct mfile_t {
     int fd;         /**< file descriptor of the underlying file */
@@ -76,5 +78,12 @@ template <typename T = char>
 const T* end(const mfile_t::ptr_t& mfile) noexcept {
     return reinterpret_cast<T*>(mfile->mmptr + mfile->size);
 }
+
+// no-op deleter to avoid unique_ptr trying to free the mmap pointer
+struct mfile_deleter{  
+    void operator()(const uint8_t[]) {
+    }
+};
+
 
 #endif

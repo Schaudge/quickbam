@@ -10,6 +10,7 @@
 #include <functional>
 #include "mfile.h"
 #include "nfo_iterator.h"
+#include <cassert>
 
 /****************************************************************
  * API usage:
@@ -67,6 +68,75 @@ inline bool is_bgzf_eof_block(const bgzf_block_t& block) {
 
 //! BGZF iterator, which is defined as a specialization of nfo_iterator_t
 using bgzf_iterator_t = nfo_iterator<bgzf_block_t, uint16_t, bgzf_block_size_offset, 1>;
+
+//! BGZF which takes its input from a slicer.
+template<typename SLICER_T>
+struct bgzf_slicer_iterator_t : std::iterator<std::forward_iterator_tag, bgzf_block_t> {
+    SLICER_T data;
+    typename SLICER_T::ptr_t current_block_slice;
+    size_t current_offset;
+    size_t current_block_size;
+
+    void load_current_block() {
+        auto block_size_slice_start = current_offset + bgzf_block_size_offset;
+        auto block_size_slice_end = block_size_slice_start + sizeof(uint16_t);
+        auto block_size_slice = data.slice(block_size_slice_start, block_size_slice_end);
+        auto block_size = *reinterpret_cast<const uint16_t*>(block_size_slice.get()) + 1;
+
+        current_block_size = block_size;
+
+        auto block_slice_start = current_offset;
+        auto block_slice_end = current_offset + block_size;
+        current_block_slice = data.slice(block_slice_start, block_slice_end);
+
+        // Special case for iterator end()
+        if (current_offset != data.size()) {
+            assert(current_block_slice[0] == 31);
+            assert(current_block_slice[1] == 139);
+        }
+    }
+
+    void load_next_block() {
+        current_offset += current_block_size;
+        current_block_size = 0;
+        load_current_block();
+    }
+
+
+    bgzf_slicer_iterator_t(SLICER_T data) : current_offset(0), current_block_size(0), data(data) {
+        load_current_block();
+    }
+
+    bgzf_slicer_iterator_t(SLICER_T data, size_t starting_offset) :
+            current_offset(starting_offset), current_block_size(0), data(data) {
+
+        load_current_block();
+    }
+
+    bgzf_slicer_iterator_t operator++() {
+        load_next_block();
+        return *this;
+    }
+    bgzf_slicer_iterator_t operator++(int) {
+        load_next_block();
+        return *this;
+    }
+    const bgzf_block_t& operator*() { return *reinterpret_cast<const bgzf_block_t*>(current_block_slice.get()); }
+
+    bool operator==(const bgzf_slicer_iterator_t& rhs) {
+        return data == rhs.data && current_offset == rhs.current_offset;
+    }
+    bool operator!=(const bgzf_slicer_iterator_t& rhs) { return !(*this == rhs); }
+
+    bgzf_slicer_iterator_t begin() {
+        return bgzf_slicer_iterator_t(data, 0);
+    }
+
+    bgzf_slicer_iterator_t end() {
+        return bgzf_slicer_iterator_t(data, data.size());
+    }
+
+};
 
 //! Creates a bgzf iterator with the given mfile, and with the record starting at the specified offset
 //! \param mfile The mfile from which the iterator should be created

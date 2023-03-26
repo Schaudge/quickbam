@@ -1,3 +1,9 @@
+if DEBUG
+AM_CXXFLAGS=-O0 -g
+else
+AM_CXXFLAGS=-O3
+endif
+
 pkginclude_HEADERS=mmbam/bam.h\
 				   mmbam/mbgzf.h\
 				   mmbam/mfile.h\
@@ -7,5 +13,5 @@ pkginclude_HEADERS=mmbam/bam.h\
 
 lib_LTLIBRARIES=libmmbam.la
 
-libmmbam_la_SOURCES = mbgzf.cc bam.cc index.cc mpileup.cc
+libmmbam_la_SOURCES = mbgzf.cc bam.cc index.cc
 libmmbam_la_LDFLAGS = -version-info: 0.0.1

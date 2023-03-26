@@ -47,12 +47,13 @@ DEALINGS IN THE SOFTWARE.  */
 
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
-#include <tbb/task_scheduler_init.h>
+#include <tbb/global_control.h>
 
 #include <mmbam/mfile.h>
 #include <mmbam/mbgzf.h>
 #include <mmbam/bam.h>
 #include <mmbam/index.h>
+#include <mmbam/slicer.h>
 
 // The following defs are taken from htslib/sam.h
 /*! @abstract the read is paired in sequencing, no matter whether it is mapped in a pair */
@@ -134,8 +135,8 @@ inline static void flagstat_loop(bam_flagstat_t *s, const BAM_T& b)
     if (c->flag & BAM_FDUP) ++s->n_dup[w];
 }
 
-template<class MFILE_T, class REGIONS_T>
-bam_flagstat_t *bam_flagstat_core(MFILE_T& mfile, const REGIONS_T& regions)
+template<class SLICEABLE_T, class REGIONS_T>
+bam_flagstat_t *bam_flagstat_core(SLICEABLE_T data, const REGIONS_T& regions)
 {
     bam_flagstat_t *s;
 
@@ -144,7 +145,7 @@ bam_flagstat_t *bam_flagstat_core(MFILE_T& mfile, const REGIONS_T& regions)
 
     parallel_for(tbb::blocked_range<long>(0, regions.size()), [&](tbb::blocked_range<long>& r) {
         for(long i=r.begin(); i<r.end(); ++i) {
-            auto bam_records = bam_load_block(mfile, regions[i].first, regions[i].second);
+            auto bam_records = bam_load_block(data, regions[i].first, regions[i].second);
             auto bam_it_beg = bam_iterator(reinterpret_cast<const bam_rec_t*>(&bam_records[0]));
             auto bam_it_end = bam_iterator(reinterpret_cast<const bam_rec_t*>(&bam_records[0] + bam_records.size()));
             auto bam_it = bam_it_beg;
@@ -220,12 +221,20 @@ int main(int argc, char *argv[])
         INPUT_FMT_OPTION = CHAR_MAX+1,
     };
 
-    int n = tbb::task_scheduler_init::default_num_threads();
-    if(argc>2) n = atoi(argv[2]);
+    auto n = tbb::global_control::active_value(tbb::global_control::max_allowed_parallelism);
 
-    tbb::task_scheduler_init scheduler(n);
+    if(argc>2) {
+        n = atoi(argv[2]);
+    }
+
+    tbb::global_control global_limit(tbb::global_control::max_allowed_parallelism, n);
+
+    //tbb::task_scheduler_init scheduler(n);
     
-    auto mfile = mfile_open(argv[1]);
+    //auto mfile = mfile_open(argv[1]);
+    //mfile_slicer_t data(mfile);
+    file_slicer_t data(argv[1]);
+
     auto index = index_read(std::ifstream(std::string(argv[1]) + ".bai"));
 
     /*header = sam_hdr_read(fp);
@@ -234,13 +243,13 @@ int main(int argc, char *argv[])
         return 1;
     }*/
 
-    auto regions = index_to_regions(index, mfile->size);
+    auto regions = index_to_regions(index, data.size());
 
     index_free(index);
 
 
     //s = bam_flagstat_core(fp, header);
-    s = bam_flagstat_core(mfile, regions);
+    s = bam_flagstat_core(data, regions);
     if (s) {
         output_fmt(s, out_fmt);
         free(s);

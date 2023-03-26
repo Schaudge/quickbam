@@ -1,3 +1,9 @@
+if DEBUG
+AM_CXXFLAGS=-O0 -g
+else
+AM_CXXFLAGS=-O3
+endif
+
 bin_PROGRAMS=readcount-mmbam flagstats-mmbam snp-pileup-mmbam
 
 AM_CPPFLAGS = -I$(top_srcdir)/src
@@ -10,4 +16,4 @@ flagstats_mmbam_SOURCES = flagstats-mmbam.cc
 flagstats_mmbam_LDADD   = $(top_builddir)/src/libmmbam.la -ltbb -ldeflate
 
 snp_pileup_mmbam_SOURCES = snp-pileup-mmbam.cc
-snp_pileup_mmbam_LDADD   = $(top_builddir)/src/libmmbam.la -ltbb -ldeflate
+snp_pileup_mmbam_LDADD   = $(top_builddir)/src/libmmbam.la -ltbb -ltbbmalloc -ldeflate

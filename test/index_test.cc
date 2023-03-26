@@ -3,6 +3,7 @@
 #include <iostream>
 #include "mmbam/index.h"
 #include "mmbam/bam.h"
+#include "mmbam/slicer.h"
 
 TEST(INDEX, CanBeLoaded) {
     auto bai_stream = std::ifstream("data/chr10.100blks.bam.bai");
@@ -26,14 +27,14 @@ TEST(INDEX, GetsAllReadsInARegion) {
     auto bai_stream = std::ifstream("data/chr10.100blks.bam.bai");
     auto index = index_read(bai_stream);
 
-    auto mfile = mfile_open("data/chr10.100blks.bam");
+    file_slicer_t data("data/chr10.100blks.bam");
 
     using intv_idx_t = decltype(index.ref[9].n_intv);
 
     uint32_t region_start = 1500000;
     uint32_t region_end   = 1530000;
 
-    auto bam_buffer = bam_load_region(mfile, index, 9, region_start, region_end);
+    auto bam_buffer = bam_load_region(data, index, 9, region_start, region_end);
     bam_iterator bam_it(bam_buffer);
     bam_iterator bam_end(bam_buffer, bam_buffer.size());
 
@@ -56,12 +57,12 @@ TEST(INDEX, GetsAllReadsOverAPosition) {
     //
     auto bai_stream = std::ifstream("data/chr10.100blks.bam.bai");
     auto index = index_read(bai_stream);
-    auto mfile = mfile_open("data/chr10.100blks.bam");
+    file_slicer_t data("data/chr10.100blks.bam");
 
     int32_t region_start = 1001280;
     int32_t region_end   = 1001281;
 
-    auto bam_buffer = bam_load_region(mfile, index, 9, region_start, region_end);
+    auto bam_buffer = bam_load_region(data, index, 9, region_start, region_end);
     bam_iterator bam_it(bam_buffer);
     bam_iterator bam_end(bam_buffer, bam_buffer.size());
 
