@@ -180,7 +180,7 @@ int main(int argc, char** argv) {
         auto end_vcf = records.begin() + r.second;
 
         // pileup from curr_vcf to last_vcf
-        mpileup(slicers, indices, chr_tid_maps[0].at(curr_vcf->chrom),
+        mpileup(slicers, indices, ets, chr_tid_maps[0].at(curr_vcf->chrom),
                 curr_vcf->pos, last_vcf->pos + 1, filter_predicate,
                 [&curr_vcf, &end_vcf](const auto& p) {
 

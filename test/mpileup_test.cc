@@ -15,6 +15,7 @@ static bool true_predicate(const bam_rec_t&) { return true; }
 TEST(MPILEUP_1FILE, CanPileupAtGivenLocation) {
     file_slicer_t slicer("data/chr10.100blks.bam");
     auto index = index_read(std::ifstream("data/chr10.100blks.bam.bai"));
+    auto ets = mpileup_ets();
 
     std::vector<file_slicer_t> slicers{slicer};
     indices_t indices{index};
@@ -22,7 +23,7 @@ TEST(MPILEUP_1FILE, CanPileupAtGivenLocation) {
     size_t coverage = 0;
 
     // chr10, pos: 1001280
-    mpileup(slicers, indices, 9, 1001279, 1001280, true_predicate, [&coverage](auto &p) {
+    mpileup(slicers, indices, ets, 9, 1001279, 1001280, true_predicate, [&coverage](auto &p) {
             if(p.pos > 1001279) return false;
             if(p.pos == 1001279) coverage = p.depth[0];
             return true;
@@ -35,6 +36,7 @@ TEST(MPILEUP_1FILE, CanPileupAtGivenLocation) {
 TEST(MPILEUP_1FILE, CanPileupAtEmptyLocation) {
     file_slicer_t slicer("data/chr10.100blks.bam");
     auto index = index_read(std::ifstream("data/chr10.100blks.bam.bai"));
+    auto ets = mpileup_ets();
     
     std::vector<file_slicer_t> slicers{slicer};
     indices_t indices{index};
@@ -42,7 +44,7 @@ TEST(MPILEUP_1FILE, CanPileupAtEmptyLocation) {
     size_t coverage = 0;
 
     // chr10, pos: 14101
-    mpileup(slicers, indices, 9, 14100, 14101, true_predicate, [&coverage](auto &p) {
+    mpileup(slicers, indices, ets, 9, 14100, 14101, true_predicate, [&coverage](auto &p) {
             if(p.pos > 14100) return false;
             if(p.pos == 14100) coverage = p.depth[0];
             return true;
@@ -54,12 +56,13 @@ TEST(MPILEUP_1FILE, CanPileupAtEmptyLocation) {
 TEST(MPILEUP_1FILE, CanCalculateQueryPosition) {
     file_slicer_t slicer("data/chr10.100blks.bam");
     auto index = index_read(std::ifstream("data/chr10.100blks.bam.bai"));
+    auto ets = mpileup_ets();
 
     std::vector<file_slicer_t> slicers{slicer};
     indices_t indices{index};
 
     // chr10, pos: 1001280
-    mpileup(slicers, indices, 9, 1001279, 1001280, true_predicate, [](auto &p) {
+    mpileup(slicers, indices, ets, 9, 1001279, 1001280, true_predicate, [](auto &p) {
             if(p.pos > 1001279) return false;
             if(p.pos == 1001279) {
                 bam_iterator bam_it(*(p.reads_buffer[0]));
@@ -81,12 +84,13 @@ TEST(MPILEUP_1FILE, CanCalculateQueryPosition) {
 TEST(MPILEUP_1FILE, CanPileupHeterozygousPosition) {
     file_slicer_t slicer("data/chr10.100blks.bam");
     auto index = index_read(std::ifstream("data/chr10.100blks.bam.bai"));
+    auto ets = mpileup_ets();
     
     std::vector<file_slicer_t> slicers{slicer};
     indices_t indices{index};
 
     //chr10, pos: 15065
-    mpileup(slicers, indices, 9, 15064, 15065, true_predicate, [](auto &p) {
+    mpileup(slicers, indices, ets, 9, 15064, 15065, true_predicate, [](auto &p) {
         if(p.pos > 15064) return false;
         if(p.pos == 15064) {
             // coverage without filtering
@@ -121,12 +125,13 @@ TEST(MPILEUP_1FILE, CanPileupInDeletionRegions) {
     auto mfile = mfile_open("data/chr10.100blks.bam");
     mfile_slicer_t slicer(mfile);
     auto index = index_read(std::ifstream("data/chr10.100blks.bam.bai"));
+    auto ets = mpileup_ets();
 
     std::vector<mfile_slicer_t> slicers{slicer};
     indices_t indices{index};
 
     // chr10, pos: 417438; 31 reads contain deleted reference seq
-    mpileup(slicers, indices, 9, 417437, 417438, true_predicate, [](auto &p) {
+    mpileup(slicers, indices, ets, 9, 417437, 417438, true_predicate, [](auto &p) {
         if(p.pos > 417437) return false;
         if(p.pos == 417437) {
             int is_del_count = 0;
@@ -152,9 +157,11 @@ TEST(MPILEUP_2FILES, CanPileupHeterozygousPosition) {
 
     std::vector<file_slicer_t> slicers{slicer1, slicer2};
     indices_t indices{index1, index2};
+    
+    auto ets = mpileup_ets();
 
     //chr10, pos: 15065
-    mpileup(slicers, indices, 9, 15064, 15065, true_predicate, [](auto &p) {
+    mpileup(slicers, indices, ets, 9, 15064, 15065, true_predicate, [](auto &p) {
         if(p.pos > 15064) return false;
         if(p.pos == 15064) {
             // coverage without filtering
@@ -202,12 +209,13 @@ TEST(MPILEUP_2FILES, CanPileupAtEmptyLocation) {
 
     std::vector<file_slicer_t> slicers{slicer1, slicer2};
     indices_t indices{index1, index2};
+    auto ets = mpileup_ets();
 
     int coverage1 = 0;
     int coverage2 = 0;
 
     // chr10, pos: 500
-    mpileup(slicers, indices, 9, 499, 500, true_predicate, [&](auto &p) {
+    mpileup(slicers, indices, ets, 9, 499, 500, true_predicate, [&](auto &p) {
         if(p.pos > 499) return false;
         if(p.pos == 499) {
             // coverage without filtering
@@ -233,9 +241,10 @@ TEST(MPILEUP_2FILES, CanPileupInDeletionRegions) {
 
     std::vector<mfile_slicer_t> slicers{slicer1, slicer2};
     indices_t indices{index1, index2};
+    auto ets = mpileup_ets();
 
     // chr10, pos: 417438
-    mpileup(slicers, indices, 9, 417437, 417438, true_predicate, [](auto &p) {
+    mpileup(slicers, indices, ets, 9, 417437, 417438, true_predicate, [](auto &p) {
         if(p.pos > 417437) return false;
         if(p.pos == 417437) {
             int is_del_count = 0;
