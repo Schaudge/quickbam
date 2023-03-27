@@ -1,6 +1,6 @@
 # Perlude.
 
-AC_INIT([mmbam], [0.1.0], [atrusqiao@gmail.com])
+AC_INIT([quickbam], [0.1.0], [yi.qiao@genetics.utah.edu])
 AC_PREREQ([2.69])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])

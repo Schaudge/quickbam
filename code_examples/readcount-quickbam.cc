@@ -1,10 +1,10 @@
 #include<iostream>
 #include<fstream>
 
-#include "mmbam/mfile.h"
-#include "mmbam/bam.h"
-#include "mmbam/index.h"
-#include "mmbam/slicer.h"
+#include "quickbam/mfile.h"
+#include "quickbam/bam.h"
+#include "quickbam/index.h"
+#include "quickbam/slicer.h"
 
 // perform parallel read of a bam file.
 
@@ -18,8 +18,6 @@ int main(int argc, const char *const argv[]) {
     auto bam_filename = argv[1];
     auto bai_filename = argc < 3 ? std::string(argv[1]) + ".bai" : std::string(argv[2]);
 
-    //auto mfile = mfile_open(bam_filename);
-    //mfile_slicer_t data(mfile);
     file_slicer_t data(bam_filename);
     auto index = index_read(std::ifstream(bai_filename));
 

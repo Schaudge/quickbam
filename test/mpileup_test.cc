@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
-#include "mmbam/mfile.h"
-#include "mmbam/mbgzf.h"
-#include "mmbam/bam.h"
-#include "mmbam/index.h"
-#include "mmbam/mpileup.h"
-#include "mmbam/slicer.h"
+#include "quickbam/mfile.h"
+#include "quickbam/mbgzf.h"
+#include "quickbam/bam.h"
+#include "quickbam/index.h"
+#include "quickbam/mpileup.h"
+#include "quickbam/slicer.h"
 #include <algorithm>
 #include <fstream>
 #include <stdio.h>

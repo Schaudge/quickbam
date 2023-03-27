@@ -1,6 +1,6 @@
 #include<gtest/gtest.h>
 #include<string.h>
-#include "mmbam/mfile.h"
+#include "quickbam/mfile.h"
 
 constexpr auto test_bam = "data/10blks.bam";
 

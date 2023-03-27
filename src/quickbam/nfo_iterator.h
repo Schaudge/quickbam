@@ -12,7 +12,7 @@
  *  "block-size" of the current record, plus an optional fixed offset that are
  *  not included in the block-size field.
  *
- *  Note that this type is used to build other types of libmmbam, and is not intended
+ *  Note that this type is used to build other types of libquickbam, and is not intended
  *  to be used directly by client code
  *
  *  \tparam T The type of the record at each valid starting address

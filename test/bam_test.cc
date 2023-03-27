@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include "mmbam/mbgzf.h"
-#include "mmbam/bam.h"
-#include "mmbam/index.h"
-#include "mmbam/slicer.h"
+#include "quickbam/mbgzf.h"
+#include "quickbam/bam.h"
+#include "quickbam/index.h"
+#include "quickbam/slicer.h"
 #include <algorithm>
 #include <fstream>
 #include <stdio.h>

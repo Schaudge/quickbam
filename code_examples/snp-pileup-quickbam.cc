@@ -1,4 +1,4 @@
-/* snp-pileup-tbb.cc -- paralle snp-pileup using mmbam and tbb
+/* snp-pileup-tbb.cc -- paralle snp-pileup using quickbam and tbb
  *
  * Author: Yi Qioa <yi.qiao@genetics.utah.edu>
  *
@@ -29,11 +29,11 @@
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_for_each.h>
 
-#include <mmbam/mbgzf.h>
-#include <mmbam/index.h>
-#include <mmbam/bam.h>
-#include <mmbam/mpileup.h>
-#include <mmbam/slicer.h>
+#include <quickbam/mbgzf.h>
+#include <quickbam/index.h>
+#include <quickbam/bam.h>
+#include <quickbam/mpileup.h>
+#include <quickbam/slicer.h>
 
 template<typename CLK> void timestamp(CLK& clk_start, const std::string& label) {
     auto clk_now = std::chrono::high_resolution_clock::now();
@@ -140,10 +140,6 @@ int main(int argc, char** argv) {
     // linear pileup
     auto mfile1 = mfile_open(argv[2]);
     auto mfile2 = mfile_open(argv[3]);
-
-    //auto slicer1 = mfile_slicer_t(mfile1);
-    //auto slicer2 = mfile_slicer_t(mfile2);
-    //std::vector<mfile_slicer_t> slicers{slicer1, slicer2};
 
     auto slicer1 = file_slicer_t(argv[2]);
     auto slicer2 = file_slicer_t(argv[3]);

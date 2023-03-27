@@ -4,14 +4,14 @@ else
 AM_CXXFLAGS=-O3
 endif
 
-pkginclude_HEADERS=mmbam/bam.h\
-				   mmbam/mbgzf.h\
-				   mmbam/mfile.h\
-				   mmbam/nfo_iterator.h\
-				   mmbam/index.h\
-				   mmbam/mpileup.h
+pkginclude_HEADERS=quickbam/bam.h\
+				   quickbam/mbgzf.h\
+				   quickbam/mfile.h\
+				   quickbam/nfo_iterator.h\
+				   quickbam/index.h\
+				   quickbam/mpileup.h
 
-lib_LTLIBRARIES=libmmbam.la
+lib_LTLIBRARIES=libquickbam.la
 
-libmmbam_la_SOURCES = mbgzf.cc bam.cc index.cc
-libmmbam_la_LDFLAGS = -version-info: 0.0.1
+libquickbam_la_SOURCES = mbgzf.cc bam.cc index.cc
+libquickbam_la_LDFLAGS = -version-info: 0.0.1

@@ -36,7 +36,7 @@ extensions = [
 
 breathe_default_project = '@PACKAGE_NAME@'
 breathe_projects_source = {
-        "@PACKAGE_NAME@": ("@top_srcdir@/src/mmbam", ["mfile.h"])
+        "@PACKAGE_NAME@": ("@top_srcdir@/src/quickbam", ["mfile.h"])
         }
 
 # Add any paths that contain templates here, relative to this directory.

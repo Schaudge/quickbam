@@ -1,4 +1,4 @@
-#include "mmbam/mbgzf.h"
+#include "quickbam/mbgzf.h"
 #include <vector>
 #include <exception>
 #include <iostream>
