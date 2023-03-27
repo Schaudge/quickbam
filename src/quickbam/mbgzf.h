@@ -2,7 +2,7 @@
 #define MBGZF_H
 
 /****************************************************************
- * BGZF APIs implemented on memory mapped file
+ * BGZF APIs implemented on memory buffers
 *****************************************************************/
 #include <string.h>
 #include <vector>

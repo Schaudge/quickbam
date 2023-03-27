@@ -54,7 +54,7 @@ pages:
     image: alpine:latest
     environment:
         name: production
-        url: https://yiq.gitlab.io/mmbam
+        url: https://yiq.gitlab.io/quickbam
     script:
         - cp -a build/docs/_build/html ./public
     artifacts:

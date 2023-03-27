@@ -1,6 +1,6 @@
-#include "mmbam/mbgzf.h"
-#include "mmbam/bam.h"
-#include "mmbam/index.h"
+#include "quickbam/mbgzf.h"
+#include "quickbam/bam.h"
+#include "quickbam/index.h"
 #include <vector>
 #include <iostream>
 #include <cassert>

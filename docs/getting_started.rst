@@ -1,7 +1,7 @@
 API Structure at a high level
 =============================
 
-The entire libmmbam library API is designed with the following principal:
+The entire libquickbam library API is designed with the following principal:
 
 * use lightweight data structure as much as possible. Classes are mostly
   avoided
@@ -14,7 +14,7 @@ The entire libmmbam library API is designed with the following principal:
    std::vector<uint8_t>&)`` returns true if the buffer contains a complete BAM
    header starting from the beginning
 
-A typical client code (programs that use libmmbam) follows these steps:
+A typical client code (programs that use libquickbam) follows these steps:
 
 1. create an mfile_t object initialized with the BAM file the program intend to
    read
@@ -27,12 +27,12 @@ A typical client code (programs that use libmmbam) follows these steps:
 
 .. admonition:: Example
 
-   the ``readcount-mmbam`` and ``flagstats-tbb`` example programs creates one
-   region for every 16kb genome window, directly from the index
+   the ``readcount-quickbam`` and ``flagstats-quickbam`` example programs
+   creates one region for every 16kb genome window, directly from the index
 
-   the ``snp-pileup-tbb`` example code creates one region for all
-   variants whose locations span less than 1 megabyte of data in the BAM file,
-   using the input VCF file as well as the BAM index
+   the ``snp-pileup-quickbam`` example code creates one region for all variants
+   whose locations span less than 1 megabyte of data in the BAM file, using the
+   input VCF file as well as the BAM index
 
 4. process the sequence reads in the BAM file in parallel across these regions
 
@@ -41,22 +41,22 @@ A typical client code (programs that use libmmbam) follows these steps:
 Compilation and Linking
 =======================
 
-libmmbam uses the GNU autotools build system. To compile and install libmmbam,
+libquickbam uses the GNU autotools build system. To compile and install libquickbam,
 execute the following commands on the command line
 
 .. code-block:: bash
 
-  tar -xzf mmbam-<version>.tar.gz
-  cd mmbam-<version>
+  tar -xzf quickbam-<version>.tar.gz
+  cd quickbam-<version>
   ./configure
   make
   sudo make install
 
 
-libmmbam depends on libdeflate for decompression and Intel Thread Building
-Block for parallelization. Programs that use libmmbam needs to specify
-``-lmmbam -ldeflate -ltbb`` in their linker flags in order to properly link these
-libraries.
+libquickbam depends on libdeflate for decompression and Intel Thread Building
+Block for parallelization. Programs that use libquickbam needs to specify
+``-lquickbam -ldeflate -ltbb`` in their linker flags in order to properly link
+these libraries.
 
 Setting up a project
 ====================
@@ -65,15 +65,15 @@ We recommend using autotools or CMake to setup the build system of your new
 project. If you prefer to write makefiles manually, make sure to 
 
 * enable C++14 features (e.g. ``-std=c++14``) during compilation
-* include the appropriate libraries ``-lmmbam -ldeflate -ltbb`` during linking.  
+* include the appropriate libraries ``-lquickbam -ldeflate -ltbb`` during linking.  
 
 Example build systems using automake is available under the ``code_examples``
-directory in the libmmbam repository.
+directory in the libquickbam repository.
 
 Reading a BAM file without the index
 ====================================
 
-Although the biggest advantage of using libmmbam, namely parallel reading,
+Although the biggest advantage of using libquickbam, namely parallel reading,
 cannot be achieved without an index file, it is still possible to iterate over
 the BGZF blocks in a BAM file to e.g. parse the header. The following snippet
 demonstrates opening a BAM file as a memory mapped file, and decompressing the
@@ -84,9 +84,9 @@ Iterate over BGZF blocks using explicit loop
 
 .. code-block:: cpp
    
-   #include <mmbam/mfile.h>
-   #include <mmbam/mbgzf.h>
-   #include <mmbam/bam.h>
+   #include <quickbam/mfile.h>
+   #include <quickbam/mbgzf.h>
+   #include <quickbam/bam.h>
 
    #include <string>
 
@@ -214,17 +214,17 @@ Random BAM accessing using the index
 ====================================
 
 The BAM index file contains the necessary information to load sequence reads of
-a given genomic region. Libmmbam takes advantage of the "linear index", which
+a given genomic region. Libquickbam takes advantage of the "linear index", which
 contains the file offsets (compressed) and buffer offsets (decompressed) for
 each 16kb genomic window. The following example demonstrates loading the BAM
 records of a particular region
 
 .. code-block:: cpp
 
-   #include <mmbam/mfile.h>
-   #include <mmbam/mbgzf.h>
-   #include <mmbam/bam.h>
-   #include <mmbam/index.h>
+   #include <quickbam/mfile.h>
+   #include <quickbam/mbgzf.h>
+   #include <quickbam/bam.h>
+   #include <quickbam/index.h>
 
    #include <string>
    #include <fstream>

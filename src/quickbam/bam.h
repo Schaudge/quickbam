@@ -2,7 +2,7 @@
 #define BAM_H
 
 /****************************************************************
- * BAM file structure APIs implemented on memory mapped file
+ * BAM file structure APIs implemented on memory buffers
 *****************************************************************/
 
 #include <stdint.h>
@@ -10,7 +10,7 @@
 #include "nfo_iterator.h"
 #include "mfile.h"
 #include "index.h"
-#include "mmbam/mbgzf.h"
+#include "quickbam/mbgzf.h"
 #include <tbb/task_arena.h>
 #include <tbb/parallel_for.h>
 

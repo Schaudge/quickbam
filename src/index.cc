@@ -1,8 +1,8 @@
 #include <stdint.h>
 #include <fstream>
-#include "mmbam/index.h"
-#include "mmbam/bam.h"
-#include "mmbam/mbgzf.h"
+#include "quickbam/index.h"
+#include "quickbam/bam.h"
+#include "quickbam/mbgzf.h"
 #include <vector>
 #include <exception>
 

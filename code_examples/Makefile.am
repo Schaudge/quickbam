@@ -4,16 +4,16 @@ else
 AM_CXXFLAGS=-O3
 endif
 
-bin_PROGRAMS=readcount-mmbam flagstats-mmbam snp-pileup-mmbam
+bin_PROGRAMS=readcount-quickbam flagstats-quickbam snp-pileup-quickbam
 
 AM_CPPFLAGS = -I$(top_srcdir)/src
 
-readcount_mmbam_SOURCES  = readcount-mmbam.cc
-readcount_mmbam_CXXFLAGS = -fopenmp
-readcount_mmbam_LDADD    = $(top_builddir)/src/libmmbam.la -ltbb -ldeflate
+readcount_quickbam_SOURCES  = readcount-quickbam.cc
+readcount_quickbam_CXXFLAGS = -fopenmp
+readcount_quickbam_LDADD    = $(top_builddir)/src/libquickbam.la -ltbb -ldeflate
 
-flagstats_mmbam_SOURCES = flagstats-mmbam.cc
-flagstats_mmbam_LDADD   = $(top_builddir)/src/libmmbam.la -ltbb -ldeflate
+flagstats_quickbam_SOURCES = flagstats-quickbam.cc
+flagstats_quickbam_LDADD   = $(top_builddir)/src/libquickbam.la -ltbb -ldeflate
 
-snp_pileup_mmbam_SOURCES = snp-pileup-mmbam.cc
-snp_pileup_mmbam_LDADD   = $(top_builddir)/src/libmmbam.la -ltbb -ltbbmalloc -ldeflate
+snp_pileup_quickbam_SOURCES = snp-pileup-quickbam.cc
+snp_pileup_quickbam_LDADD   = $(top_builddir)/src/libquickbam.la -ltbb -ltbbmalloc -ldeflate

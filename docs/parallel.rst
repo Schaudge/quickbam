@@ -1,7 +1,7 @@
 Parallel processing of BAM files
 ================================
 
-The main advantage of using libmmbam is to achieve stunningly fast speed via
+The main advantage of using libquickbam is to achieve stunningly fast speed via
 parallel data processing, with the help of the BAM index file. Many data
 processing tasks can be expressed in a map-reduce fashion where "map"
 operations can be applied independently to many genomic regions, followed by a
@@ -19,7 +19,7 @@ BAM file. A program can go through all the reads one by one from the beginning
 to the end, or, it can process many small, non-overlapping regions in parallel,
 and then sum the counts of each region up. Here we demonstrate how to take the
 second approach, and parallelize on each 16kb genomic window, which maps
-directly to the BAM linear index. Libmmbam offers a convinence function, 
+directly to the BAM linear index. Libquickbam offers a convinence function, 
 index2region, to return a vector of (start, end] virtual offset pairs, which
 can be used to load the BAM reads of the corresponding regions. We use OpenMP
 as the parallelization mechanism for this example
@@ -28,9 +28,9 @@ as the parallelization mechanism for this example
 
    #include <iostream>
    #include <fstream>
-   #include <mmbam/mfile.h>
-   #include <mmbam/bam.h>
-   #include <mmbam/index.h>
+   #include <quickbam/mfile.h>
+   #include <quickbam/bam.h>
+   #include <quickbam/index.h>
 
    int main(int argc, const char *const argv[]) {
 
@@ -66,18 +66,18 @@ Another pattern of compute tasks is to gather all reads overlapping a specific
 position, over many independent positions. If the task is to process each read
 independently, it can be implemented in a similar fashion as the example above.
 However, if it is the bases from all these reads overlapping the position that
-need to be processed, a pileup engine is then necessary. Libmmbam provides a
+need to be processed, a pileup engine is then necessary. Libquickbam provides a
 multiple input pileup engine, which can be invoked in parallel over many
 positions. Here we provide some simple concepts on how to use the pileup
-engine. For a full working program example, please see the snp-pileup-tbb
+engine. For a full working program example, please see the snp-pileup-quickbam
 program in the "code_example" directory of the repository.
 
 .. code-block:: cpp
 
-   #include <mmbam/mfile.h>
-   #include <mmbam/bam.h>
-   #include <mmbam/index.h>
-   #include <mmbam/mpileup.h>
+   #include <quickbam/mfile.h>
+   #include <quickbam/bam.h>
+   #include <quickbam/index.h>
+   #include <quickbam/mpileup.h>
 
    #include <fstream>
 
@@ -120,7 +120,7 @@ program in the "code_example" directory of the repository.
            [&](auto& r) {
 
                // the filter lambda returns false if the mapping quality of
-               // a read is below a given a hardcoded threshold (1)
+               // a read is below a hardcoded threshold (1)
                auto filter_predicate = [](const auto& bam_rec) {
                    if(bam_rec.mapq<1) return false;
                    return true;

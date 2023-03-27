@@ -1,9 +1,9 @@
-/* flagstats-tbb.cc -- parallel bam flagstats using mmbam and tbb
+/* flagstats-tbb.cc -- parallel bam flagstats using quickbam and tbb
  *
  * Author: Yi Qiao <yi.qiao@genetics.utah.edu>
  *
  * This code example is adopted from the bam_stats.c in the samtools project.
- * It demonstrates how to use libmmbam to compute sequence alignment stats
+ * It demonstrates how to use libquickbam to compute sequence alignment stats
  * in parallel using the Intel Thread Building Block library for multi-
  * threading. 
  *
@@ -49,11 +49,11 @@ DEALINGS IN THE SOFTWARE.  */
 #include <tbb/parallel_reduce.h>
 #include <tbb/global_control.h>
 
-#include <mmbam/mfile.h>
-#include <mmbam/mbgzf.h>
-#include <mmbam/bam.h>
-#include <mmbam/index.h>
-#include <mmbam/slicer.h>
+#include <quickbam/mfile.h>
+#include <quickbam/mbgzf.h>
+#include <quickbam/bam.h>
+#include <quickbam/index.h>
+#include <quickbam/slicer.h>
 
 // The following defs are taken from htslib/sam.h
 /*! @abstract the read is paired in sequencing, no matter whether it is mapped in a pair */
@@ -229,10 +229,6 @@ int main(int argc, char *argv[])
 
     tbb::global_control global_limit(tbb::global_control::max_allowed_parallelism, n);
 
-    //tbb::task_scheduler_init scheduler(n);
-    
-    //auto mfile = mfile_open(argv[1]);
-    //mfile_slicer_t data(mfile);
     file_slicer_t data(argv[1]);
 
     auto index = index_read(std::ifstream(std::string(argv[1]) + ".bai"));

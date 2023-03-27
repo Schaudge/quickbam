@@ -7,7 +7,7 @@ GTEST_LIBS=-lgtest -lgtest_main
 
 AM_CPPFLAGS=-I$(top_srcdir)/src
 AM_CXXFLAGS=$(GTEST_CFLAGS) $(PTHREAD_CFLAGS)
-LDADD=$(GTEST_LIBS) ../src/libmmbam.la -ldeflate -ltbb $(PTHREAD_LIBS)
+LDADD=$(GTEST_LIBS) ../src/libquickbam.la -ldeflate -ltbb $(PTHREAD_LIBS)
 
 #mfile_test_SOURCES = mfile_test.cc
 #mbgzf_test_SOURCES = mbgzf_test.cc

@@ -1,16 +1,16 @@
-.. The API section of the libmmbam documentation
+.. The API section of the libquickbam documentation
 
 Overview
 ========
 
-This section of the document describe the types and interfaces of libmmbam in
-details. It is meant to be a programming reference, instead of a proper
-introduction on how to use libmmbam. For such an introduction, please see
+This section of the document describe the types and interfaces of libquickbam
+in details. It is meant to be a programming reference, instead of a proper
+introduction on how to use libquickbam. For such an introduction, please see
 Introduction.
 
-The libmmbam API consists of several C structs and functions that either take
-these structs as arguments, or return them as results. Some are meant to be
-used as an opaque data type, whose internals are only meaningful to offered
+The libquickbam API consists of several C structs and functions that either
+take these structs as arguments, or return them as results. Some are meant to
+be used as an opaque data type, whose internals are only meaningful to offered
 library functions; while others are deliberately designed to mirror the byte
 layout of data structures described in the SAM file format specification, and
 meant to be accessed directly by client code. Here we offer a general overview
@@ -32,7 +32,7 @@ mfile_t is an opaque struct in general, and is used to wrap opened and memory
 mapped files. Client code usually don't create them directly, but instead use
 the helper function mfile_open to acquire a smart pointer (std::unique_ptr) so
 that, upon going out of scope, the memory mapped address is automatically
-unmapped, and file descriptor closed. APIs in libmmbam takes a reference to the
+unmapped, and file descriptor closed. APIs in libquickbam takes a reference to the
 smart pointer, when they need to read data from the underlying file
 
 .. doxygenstruct:: mfile_t
@@ -55,7 +55,7 @@ provide direct access to the fixed length fields, as well as the beginning of
 the variable length field. It further made the assumption that each BGZF block
 only contains a single "Extra" field with (66, 67) identifiers.
 
-This struct is used by other components of libmmbam, and is rarely used in
+This struct is used by other components of libquickbam, and is rarely used in
 client programs.
 
 .. doxygenstruct:: bgzf_block_t
@@ -72,7 +72,7 @@ bgzf_mfile_proxy_t
 
 This struct provides a view of a mfile_t as a series of concatinated
 bgzf_block_t, and provide functions to obtain iterators to loop over the BGZF
-blocks in the file. It is used by other components of libmmbam, and is rarely
+blocks in the file. It is used by other components of libquickbam, and is rarely
 used in client programs
 
 .. doxygenstruct:: bgzf_mfile_proxy_t

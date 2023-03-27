@@ -9,7 +9,7 @@ SOURCEDIR     = @srcdir@
 BUILDDIR      = _build
 CONFIGFILE    = .
 
-opts          = -c $(CONFIGFILE) -Dbreathe_projects.mmbam=doxygen/xml $(SPHINXOPTS)
+opts          = -c $(CONFIGFILE) -Dbreathe_projects.quickbam=doxygen/xml $(SPHINXOPTS)
 
 
 # Put it first so that "make" without argument is like "make help".
