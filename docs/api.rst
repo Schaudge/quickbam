@@ -25,24 +25,11 @@ nfo_iterator
 .. doxygenstruct:: nfo_iterator
    :members:
 
-mfile_t
-^^^^^^^
+file_slicer_t
+^^^^^^^^^^^^^
 
-mfile_t is an opaque struct in general, and is used to wrap opened and memory
-mapped files. Client code usually don't create them directly, but instead use
-the helper function mfile_open to acquire a smart pointer (std::unique_ptr) so
-that, upon going out of scope, the memory mapped address is automatically
-unmapped, and file descriptor closed. APIs in libquickbam takes a reference to the
-smart pointer, when they need to read data from the underlying file
-
-.. doxygenstruct:: mfile_t
+.. doxygenstruct:: file_slicer_t
    :members:
-
-.. doxygenfunction:: mfile_open
-
-.. doxygenfunction:: begin(const mfile_t::ptr_t&) noexcept
-
-.. doxygenfunction:: end(const mfile_t::ptr_t&) noexcept
 
 
 bgzf_block_t
@@ -61,21 +48,15 @@ client programs.
 .. doxygenstruct:: bgzf_block_t
 .. doxygenfunction:: is_bgzf_eof_block
 .. doxygentypedef:: bgzf_iterator_t
-.. doxygenfunction:: bgzf_iterator_at
 .. doxygenfunction:: bgzf_isize
 .. doxygenfunction:: bgzf_inflate
 .. doxygenfunction:: bgzf_inflate_range
 .. doxygenfunction:: bgzf_inflate_range_p
 
-bgzf_mfile_proxy_t
-^^^^^^^^^^^^^^^^^^
+bgzf_slicer_iterator_t
+^^^^^^^^^^^^^^^^^^^^^^
 
-This struct provides a view of a mfile_t as a series of concatinated
-bgzf_block_t, and provide functions to obtain iterators to loop over the BGZF
-blocks in the file. It is used by other components of libquickbam, and is rarely
-used in client programs
-
-.. doxygenstruct:: bgzf_mfile_proxy_t
+.. doxygenstruct:: bgzf_slicer_iterator_t
    :members:
 
 
@@ -161,6 +142,5 @@ information at the piled up position.
 .. doxygenstruct:: pileup_info_t
    :members:
 
-.. doxygentypedef:: mfiles_t
 .. doxygentypedef:: indices_t
 .. doxygenfunction:: mpileup

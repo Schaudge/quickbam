@@ -69,7 +69,7 @@ inline bool is_bgzf_eof_block(const bgzf_block_t& block) {
 //! BGZF iterator, which is defined as a specialization of nfo_iterator_t
 using bgzf_iterator_t = nfo_iterator<bgzf_block_t, uint16_t, bgzf_block_size_offset, 1>;
 
-//! BGZF which takes its input from a slicer.
+//! Iterator which takes its input from a slicer and iterates over bgzf_block_t elements.
 template<typename SLICER_T>
 struct bgzf_slicer_iterator_t : std::iterator<std::forward_iterator_tag, bgzf_block_t> {
     SLICER_T data;
@@ -103,12 +103,17 @@ struct bgzf_slicer_iterator_t : std::iterator<std::forward_iterator_tag, bgzf_bl
     }
 
 
-    bgzf_slicer_iterator_t(SLICER_T data) : current_offset(0), current_block_size(0), data(data) {
+    //! Creates iterator from beginning of slicer data
+    bgzf_slicer_iterator_t(SLICER_T slicer) : current_offset(0), current_block_size(0), data(slicer) {
         load_current_block();
     }
 
-    bgzf_slicer_iterator_t(SLICER_T data, size_t starting_offset) :
-            current_offset(starting_offset), current_block_size(0), data(data) {
+    //! Create iterator from specific offset of slicer data
+    /*! \param slicer Data slicer
+     *  \param starting_offset 0-indexed byte offset to start iterating from
+     */
+    bgzf_slicer_iterator_t(SLICER_T slicer, size_t starting_offset) :
+            current_offset(starting_offset), current_block_size(0), data(slicer) {
 
         load_current_block();
     }
@@ -128,10 +133,12 @@ struct bgzf_slicer_iterator_t : std::iterator<std::forward_iterator_tag, bgzf_bl
     }
     bool operator!=(const bgzf_slicer_iterator_t& rhs) { return !(*this == rhs); }
 
+    //! Returns iterator at beginning of slicer data
     bgzf_slicer_iterator_t begin() {
         return bgzf_slicer_iterator_t(data, 0);
     }
 
+    //! Returns iterator at end of slicer data
     bgzf_slicer_iterator_t end() {
         return bgzf_slicer_iterator_t(data, data.size());
     }
