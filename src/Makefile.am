@@ -10,8 +10,7 @@ pkginclude_HEADERS=quickbam/slicer.h\
 				   quickbam/mfile.h\
 				   quickbam/nfo_iterator.h\
 				   quickbam/index.h\
-				   quickbam/mpileup.h\
-				   quickbam/slicer.h
+				   quickbam/mpileup.h
 
 lib_LTLIBRARIES=libquickbam.la
 
