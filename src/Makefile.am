@@ -4,7 +4,8 @@ else
 AM_CXXFLAGS=-O3
 endif
 
-pkginclude_HEADERS=quickbam/bam.h\
+pkginclude_HEADERS=quickbam/slicer.h\
+				   quickbam/bam.h\
 				   quickbam/mbgzf.h\
 				   quickbam/mfile.h\
 				   quickbam/nfo_iterator.h\
