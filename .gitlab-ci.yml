@@ -48,6 +48,14 @@ test:
     reports:
       junit: build/test/gtest_report.xml
 
+upload:
+  stage: deploy
+  image: curlimages/curl:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file build/quickbam-${CI_COMMIT_TAG}.tar.gz "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/quickbam/${CI_COMMIT_TAG}/quickbam-${CI_COMMIT_TAG}.tar.gz'
+
 # create release tarball
 release:
   stage: deploy
@@ -59,6 +67,7 @@ release:
   needs:
     - job: build
       artifacts: true
+  
   release:
     tag_name: '$CI_COMMIT_TAG'
     description: '$CI_COMMIT_TAG'
