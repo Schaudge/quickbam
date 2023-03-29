@@ -115,8 +115,8 @@ program in the "code_example" directory of the repository.
        std::vector<work_items> parallel_items = work_item_gen_func();
 
        tbb::parallel_for_each(
-           parallel_items.cbegin(),
-           parallel_items.cend(),
+           parallel_items.begin(),
+           parallel_items.end(),
            [&](auto& r) {
 
                // the filter lambda returns false if the mapping quality of
