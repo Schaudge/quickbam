@@ -5,7 +5,7 @@
 
 
 Introduction to libquickbam
-========================
+===========================
 
 libquickbam offers stunningly fast reading of indexed BAM files, taking advantage
 of parallel data processing. Together with modern, high throughput hardware
