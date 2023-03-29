@@ -1,0 +1,12 @@
+#!/bin/sh
+
+v_str=
+tag=$(git describe --tag 2>/dev/null)
+
+if [ $? -eq 0 ]; then
+    v_str=$tag
+else
+    v_str=$1
+fi
+
+echo $v_str

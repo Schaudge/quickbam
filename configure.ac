@@ -1,6 +1,6 @@
 # Perlude.
 
-AC_INIT([quickbam], [1.0.0], [yi.qiao@genetics.utah.edu])
+AC_INIT([quickbam], [m4_esyscmd_s([./git-version 1.0.0])], [yi.qiao@genetics.utah.edu])
 AC_PREREQ([2.69])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
