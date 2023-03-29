@@ -4,6 +4,10 @@
 
 image: gcc
 
+variables:
+  PACKAGE_VERSION: "${CI_COMMIT_TAG}"
+  PACKAGE_REGISTRY_URL: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/quickbam/${PACKAGE_VERSION}"
+
 build:
   stage: build
   # instead of calling g++ directly you can also use some build toolkit like make
@@ -54,7 +58,7 @@ upload:
   rules:
     - if: $CI_COMMIT_TAG
   script:
-    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file build/quickbam-${CI_COMMIT_TAG}.tar.gz "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/quickbam/${CI_COMMIT_TAG}/quickbam-${CI_COMMIT_TAG}.tar.gz"'
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file build/quickbam-${CI_COMMIT_TAG}.tar.gz "${PACKAGE_REGISTRY_URL}/quickbam-${CI_COMMIT_TAG}.tar.gz"'
 
 # create release tarball
 release:
@@ -64,8 +68,7 @@ release:
     - if: $CI_COMMIT_TAG
   script:
     - |
-      release-cli create --name "Release $CI_COMMIT_TAG" --tag-name $CI_COMMIT_TAG \
-        --assets-link "{\"name\":\"quickbam-${CI_COMMIT_TAG}\", \"url\":\"${PACKAGE_REGISTRY_URL}/quickbam-${CI_COMMIT_TAG}.tar.gz\"}"
+      release-cli create --name "Release $CI_COMMIT_TAG" --tag-name $CI_COMMIT_TAG --assets-link "{\"name\":\"quickbam-${CI_COMMIT_TAG}\",\"url\":\"${PACKAGE_REGISTRY_URL}/quickbam-${CI_COMMIT_TAG}.tar.gz\"}"
 
 # deploy documentation
 pages:
