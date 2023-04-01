@@ -1,4 +1,4 @@
-/* snp-pileup-tbb.cc -- paralle snp-pileup using quickbam and tbb
+/* snp-pileup-quickbam.cc -- paralle snp-pileup using quickbam and tbb
  *
  * Author: Yi Qioa <yi.qiao@genetics.utah.edu>
  *
@@ -69,11 +69,12 @@ bool filter_predicate(const bam_rec_t& bam_rec) {
     return true;
 }
 
-std::map<std::string, uint32_t> parse_header(const mfile_t::ptr_t& mfile, const index_t& index, bool& bam_has_prefix) {
+template<class SLICER_T>
+std::map<std::string, uint32_t> parse_header(const SLICER_T& slicer, const index_t& index, bool& bam_has_prefix) {
     // read header
-    bgzf_mfile_proxy_t bgzf_proxy(mfile);
+    bgzf_slicer_iterator_t<SLICER_T> bgzf_iter(slicer);
     std::vector<uint8_t> bam_buffer;
-    for(auto& bgzf_block : bgzf_proxy) {
+    for(auto& bgzf_block : bgzf_iter) {
         auto de_buff = bgzf_inflate(bgzf_block);
         bam_buffer.insert(bam_buffer.end(), de_buff.cbegin(), de_buff.cend());
         if(bam_buffer_contains_header(bam_buffer)) break;
@@ -115,7 +116,7 @@ int main(int argc, char** argv) {
     // 2.1.4. flag should not indicate read unmapped
     // 2.1.5. read tid should not be less than 0
     // 2.1.6. mapping quality should not be less than min_mq (1)
-    // 2.1.7. flag should not indicate proper pair if it's paired-end reads
+    // 2.1.7. flag should not indicate "not proper pair" for paired-end reads
     // 2.2. for each location in each bam file, examine the pileup
     // 2.2.1. ignore locations where total depth is less than min_rc (0)
     // 2.2.1. ignore read if base quality is less than min_bq (1)
@@ -137,23 +138,18 @@ int main(int argc, char** argv) {
     auto clk_start = std::chrono::high_resolution_clock::now();
     timestamp(clk_start, "started");
 
-    // linear pileup
-    auto mfile1 = mfile_open(argv[2]);
-    auto mfile2 = mfile_open(argv[3]);
-
     auto slicer1 = file_slicer_t(argv[2]);
     auto slicer2 = file_slicer_t(argv[3]);
     std::vector<file_slicer_t> slicers{slicer1, slicer2};
 
     auto index1 = index_read(std::ifstream(std::string(argv[2]) + ".bai"));
     auto index2 = index_read(std::ifstream(std::string(argv[3]) + ".bai"));
-    
     indices_t indices{index1, index2};
     
     std::vector<std::map<std::string, uint32_t>> chr_tid_maps(2);
     bool bam_has_prefix;
-    chr_tid_maps[0] = parse_header(mfile1, index1, bam_has_prefix);
-    chr_tid_maps[1] = parse_header(mfile2, index2, bam_has_prefix);
+    chr_tid_maps[0] = parse_header(slicer1, index1, bam_has_prefix);
+    chr_tid_maps[1] = parse_header(slicer2, index2, bam_has_prefix);
 
     std::cout<<"Chromosome,Position,Ref,Alt,File1R,File1A,File1E,File1D,File2R,File2A,File2E,File2D";
     std::cout<<std::endl;
@@ -162,14 +158,12 @@ int main(int argc, char** argv) {
 
     std::vector<vcf_record> records;
     std::vector<std::pair<size_t, size_t>> work_ranges;
-    auto ets = mpileup_ets();
+    auto ets = mpileup_ets();   // thread-local storage for the mpileup engine
 
     load_vcf(records, work_ranges, argv[1], indices, chr_tid_maps);
-
     timestamp(clk_start, "vcf loaded, "+std::to_string(records.size()) + " vars, "+std::to_string(work_ranges.size())+" ranges");
 
     tbb::parallel_for_each(work_ranges.cbegin(), work_ranges.cend(), [&](auto& r){
-
 
         auto curr_vcf = records.begin() + r.first;
         auto last_vcf = records.begin() + (r.second - 1);
@@ -258,8 +252,8 @@ int main(int argc, char** argv) {
 
     timestamp(clk_start, "output written");
 
-    //index_free(index1);
-    //index_free(index2);
+    index_free(index1);
+    index_free(index2);
 
     return 0;
 
