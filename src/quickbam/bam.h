@@ -170,7 +170,8 @@ std::vector<uint8_t> bam_load_block(SLICER_T data, uint64_t ioffset_first, uint6
     // data to decompress the whole block. It might be better to read the
     // block header and figure out exactly how much we need to read, but I'm
     // guessing the extra IO might actually be slower.
-    auto slice = data.slice(coffset_first, coffset_last + MAX_BSIZE);
+    auto load_end = coffset_last + MAX_BSIZE;
+    auto slice = data.slice(coffset_first, load_end < data.size() ? load_end : data.size());
 
     auto bgzf_block_first = reinterpret_cast<const bgzf_block_t*>(slice.get());
     auto bgzf_block_last = reinterpret_cast<const bgzf_block_t*>(slice.get() + (coffset_last - coffset_first));

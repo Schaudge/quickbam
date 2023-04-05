@@ -115,7 +115,8 @@ struct bgzf_slicer_iterator_t : std::iterator<std::forward_iterator_tag, bgzf_bl
     bgzf_slicer_iterator_t(SLICER_T slicer, size_t starting_offset) :
             current_offset(starting_offset), current_block_size(0), data(slicer) {
 
-        load_current_block();
+        if(starting_offset < slicer.size())
+            load_current_block();
     }
 
     bgzf_slicer_iterator_t operator++() {

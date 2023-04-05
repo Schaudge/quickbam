@@ -4,7 +4,6 @@
 /*! Slicer type that abstracts over an mfile */
 struct mfile_slicer_t {
     using ptr_t = std::shared_ptr<const uint8_t[]>;
-
     const mfile_t::ptr_t& mfile;
 
     mfile_slicer_t(const mfile_t::ptr_t& mfile) : mfile(mfile)
@@ -62,11 +61,18 @@ struct file_slicer_t {
      *  \return a ptr_t slice of bytes
      */
     ptr_t slice(uint64_t start, uint64_t end) {
-        const size_t range_size = end - start;
+        size_t range_size = end - start;
         ptr_t buf(new uint8_t[range_size]);
-        auto n_read = pread(fd, (void*)buf.get(), range_size, start);
-        // TODO: Isn't this move implicit?
-        return std::move(buf);
+        uint8_t *buf_ptr = (uint8_t*)buf.get();
+
+        while(range_size > 0) {
+            auto n_read = pread(fd, buf_ptr, range_size, start);
+            range_size -= n_read;
+            start += n_read;
+            buf_ptr += n_read;
+        }
+
+        return buf;
     }
 
     //! Returns the size of the entire underlying file
