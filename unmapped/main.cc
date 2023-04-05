@@ -73,6 +73,7 @@ size_t bgzf_find_next_block(SLICER_T slicer, size_t start_offset) {
         }
     }
 
+    // TODO: properly handle error conditions
     assert(0 != 1);
     return 0;
 }
@@ -90,55 +91,48 @@ std::vector<region> slicer_to_regions(SLICER_T slicer, size_t start_offset, size
     const size_t CHUNK_SZ = 1024*1024;
 
     uint64_t region_start = 0;
+    uint64_t ioffset = 0;
     bool first = true;
+    bool found = false;
 
     //for (size_t start_idx = 0; start_idx < 10000000; start_idx += CHUNK_SZ) {
     for (size_t start_idx = start_offset; start_idx < end_offset; start_idx += CHUNK_SZ) {
         //cout << "start_idx: " << start_idx << endl;
         auto block_idx = bgzf_find_next_block(slicer, start_idx);
-        cout << "block_idx: " << block_idx << endl;
         auto block_header_slice = slicer.slice(block_idx, block_idx + sizeof(bgzf_block_t));
         auto block_header = reinterpret_cast<const bgzf_block_t*>(block_header_slice.get());
 
         auto block_slice = slicer.slice(block_idx, block_idx + block_header->bsize + 1);
         auto block = reinterpret_cast<const bgzf_block_t*>(block_slice.get());
 
-        print_block(block);
-
         auto block_bytes = bgzf_inflate(*block);
 
-        cout << "size: " << block_bytes.size() << endl;
-
-        bool found = false;
+        found = false;
         for (size_t j = 0; j < block_bytes.size(); j++) {
             // TODO: apparently with HG002.GRCh38.2x250.bam j is never greater
             // than 0?
             auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[j]);
 
-            if (bam_rec->block_size < 1000000) {
-                cout << "j: " << j << endl;
-                print_rec(*bam_rec);
-            }
-
             if (is_bam(bam_rec)) {
-                auto ioffset = calc_ioffset(block_idx, j);
-
-                if (first) {
-                    first = false;
-                    region_start = ioffset;
-                }
-                else {
-                    regions.push_back({ region_start, ioffset });
-                    region_start = ioffset;
-                }
-
                 found = true;
+                ioffset = calc_ioffset(block_idx, j);
                 break;
             }
         }
 
-        assert(found);
+        if (found) {
+            if (first) {
+                first = false;
+                region_start = ioffset;
+            }
+            else {
+                regions.push_back({ region_start, ioffset });
+                region_start = ioffset;
+            }
+        }
     }
+
+    assert(found);
 
     if (index_coffset(region_start) < end_offset) {
         regions.push_back({ region_start, calc_ioffset(end_offset, 0) });
@@ -209,8 +203,6 @@ int main(int argc, char** argv) {
         cout << "max region size: " << max_size << endl;
         cout << "avg region size: " << avg << endl;
     }
-
-    return 0;
 
     uint64_t records = 0;
 
