@@ -11,6 +11,7 @@
 
 using namespace std;
 
+#define PRINT(x) std::cout << #x << ": " << x << std::endl
 
 
 void print_rec(const bam_rec_t& rec) {
@@ -30,10 +31,8 @@ void print_rec(const bam_rec_t& rec) {
 void print_region(const region& region) {
     cout
         << index_coffset(region.first)
-        << " : "
+        << "-"
         << index_coffset(region.second)
-        << " : "
-        << index_coffset(region.second) - index_coffset(region.first)
         << endl;
 }
 
@@ -41,7 +40,10 @@ void print_block(const bgzf_block_t* b) {
     cout
         << "id1: " << (int)b->id1 << endl
         << "id2: " << (int)b->id2 << endl
+        << "si1: " << (int)b->si1 << endl
+        << "si2: " << (int)b->si2 << endl
         << "bsize: " << b->bsize  << endl
+        << "isize: " << bgzf_isize(*b) << endl
         << endl;
 }
 
@@ -53,10 +55,11 @@ bool is_bam(const bam_rec_t* r) {
 }
 
 
+const uint32_t BGZF_MAX_BLOCK_SIZE = 64*1024;
+
 template<typename SLICER_T>
 size_t bgzf_find_next_block(SLICER_T slicer, size_t start_offset) {
 
-    const uint32_t BGZF_MAX_BLOCK_SIZE = 64*1024;
     // A valid BGZF file should never have more than 64k bytes between blocks.
     // Therefore when searching for a valid block header (bgzf_block_t), the
     // worst case is that the block starts at 64k-1 from the start of the
@@ -99,25 +102,37 @@ std::vector<region> slicer_to_regions(SLICER_T slicer, size_t start_offset, size
     for (size_t start_idx = start_offset; start_idx < end_offset; start_idx += CHUNK_SZ) {
         //cout << "start_idx: " << start_idx << endl;
         auto block_idx = bgzf_find_next_block(slicer, start_idx);
-        auto block_header_slice = slicer.slice(block_idx, block_idx + sizeof(bgzf_block_t));
-        auto block_header = reinterpret_cast<const bgzf_block_t*>(block_header_slice.get());
 
-        auto block_slice = slicer.slice(block_idx, block_idx + block_header->bsize + 1);
-        auto block = reinterpret_cast<const bgzf_block_t*>(block_slice.get());
+        bgzf_slicer_iterator_t bgzf_it(slicer, block_idx);
+        auto bgzf_end = bgzf_it.end();
 
-        auto block_bytes = bgzf_inflate(*block);
+        uint64_t coffset = block_idx;
 
         found = false;
-        for (size_t j = 0; j < block_bytes.size(); j++) {
-            // TODO: apparently with HG002.GRCh38.2x250.bam j is never greater
-            // than 0?
-            auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[j]);
+        while (bgzf_it != bgzf_end) {
 
-            if (is_bam(bam_rec)) {
-                found = true;
-                ioffset = calc_ioffset(block_idx, j);
+            const bgzf_block_t& block = *bgzf_it;
+
+            auto block_bytes = bgzf_inflate(block);
+
+            for (size_t uoffset = 0; uoffset < block_bytes.size(); uoffset++) {
+                // TODO: apparently with HG002.GRCh38.2x250.bam j is never greater
+                // than 0?
+                auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[uoffset]);
+
+                if (is_bam(bam_rec)) {
+                    found = true;
+                    ioffset = calc_ioffset(coffset, uoffset);
+                    break;
+                }
+            }
+
+            if (found) {
                 break;
             }
+
+            coffset += (block.bsize + 1);
+            bgzf_it++;
         }
 
         if (found) {
@@ -130,9 +145,10 @@ std::vector<region> slicer_to_regions(SLICER_T slicer, size_t start_offset, size
                 region_start = ioffset;
             }
         }
+
+        assert(found);
     }
 
-    assert(found);
 
     if (index_coffset(region_start) < end_offset) {
         regions.push_back({ region_start, calc_ioffset(end_offset, 0) });
@@ -157,11 +173,27 @@ int main(int argc, char** argv) {
 
     file_slicer_t slicer(argv[1]);
 
+    //uint64_t idx = stoull(argv[2]);
+    //cout << "idx:" << idx << endl;
+    //auto slice = slicer.slice(idx, idx + BGZF_MAX_BLOCK_SIZE);
+    //auto blk = reinterpret_cast<const bgzf_block_t*>(slice.get());
+
+    //print_block(blk);
+
+    //auto buf = bgzf_inflate(*blk);
+
+    //auto bam_read = reinterpret_cast<const bam_rec_t*>(buf.data());
+
+    //print_rec(*bam_read);
+
+    //auto regions = slicer_to_regions(slicer);
+
+
+
     auto index = index_read(std::ifstream(std::string(argv[1]) + ".bai"));
     auto index_regions = index_to_regions(index, slicer.size());
 
     auto last_mapped_region = index_regions[index_regions.size() - 1];
-    print_region(last_mapped_region);
 
 
     cout << "slicer_to_regions" << endl;
@@ -169,6 +201,9 @@ int main(int argc, char** argv) {
     //auto regions = slicer_to_regions(slicer, 0, 4733653485);
     //auto regions = slicer_to_regions(slicer, 1000000);
     
+    for (auto& region : regions) {
+        print_region(region);
+    }
 
     uint64_t min_size = 1000000000;
     uint64_t max_size = 0;
@@ -212,6 +247,7 @@ int main(int argc, char** argv) {
     for(size_t i=0; i<regions.size(); i++) {
         if(regions[i].first == regions[i].second) throw std::runtime_error("same region start and end");
         auto bam_records = bam_load_block(slicer, regions[i].first, regions[i].second);
+        //cout << regions[i].first << endl;
         auto record_count = bam_count_records(bam_records);
         records += record_count;
     }
