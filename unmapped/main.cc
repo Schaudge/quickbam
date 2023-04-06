@@ -113,7 +113,7 @@ std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_offset, size_t 
 
         auto block_idx = bgzf_find_next_block(slicer, start_idx);
 
-        bgzf_slicer_iterator_t bgzf_it(slicer, block_idx);
+        bgzf_slicer_iterator_t<SLICER_T> bgzf_it(slicer, block_idx);
         auto bgzf_end = bgzf_it.end();
 
         uint64_t coffset = block_idx;
