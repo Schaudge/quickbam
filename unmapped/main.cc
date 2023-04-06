@@ -48,7 +48,7 @@ void print_block(const bgzf_block_t* b) {
         << endl;
 }
 
-bool is_bam(const bam_rec_t* r) {
+bool bam_is_valid(const bam_rec_t* r) {
     bool basic_checks = r->l_seq > 0 &&
         r->l_seq < 500 &&
         r->block_size > r->l_seq &&
@@ -98,7 +98,7 @@ uint64_t calc_ioffset(uint64_t coffset, uint64_t uoffset) {
 
 
 template<typename SLICER_T>
-std::vector<region> slicer_to_regions(SLICER_T slicer, size_t start_offset, size_t end_offset) {
+std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_offset, size_t end_offset) {
 
     const size_t CHUNK_SZ = 1024*1024;
 
@@ -130,7 +130,7 @@ std::vector<region> slicer_to_regions(SLICER_T slicer, size_t start_offset, size
                 // than 0?
                 auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[uoffset]);
 
-                if (is_bam(bam_rec)) {
+                if (bam_is_valid(bam_rec)) {
                     found = true;
                     uint64_t ioffset = calc_ioffset(coffset, uoffset);
                     region_starts[chunk_idx] = ioffset;
@@ -176,13 +176,13 @@ std::vector<region> slicer_to_regions(SLICER_T slicer, size_t start_offset, size
 
 
 template<typename SLICER_T>
-std::vector<region> slicer_to_regions(SLICER_T slicer, size_t start_offset) {
-    return slicer_to_regions(slicer, start_offset, slicer.size());
+std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_offset) {
+    return bam_to_regions(slicer, start_offset, slicer.size());
 }
 
 template<typename SLICER_T>
-std::vector<region> slicer_to_regions(SLICER_T slicer) {
-    return slicer_to_regions(slicer, 0, slicer.size());
+std::vector<region> bam_to_regions(SLICER_T slicer) {
+    return bam_to_regions(slicer, 0, slicer.size());
 }
 
 
@@ -190,7 +190,7 @@ int main(int argc, char** argv) {
 
     file_slicer_t slicer(argv[1]);
 
-    auto regions = slicer_to_regions(slicer);
+    auto regions = bam_to_regions(slicer);
 
     uint64_t records = 0;
 
