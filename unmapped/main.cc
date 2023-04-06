@@ -48,10 +48,31 @@ void print_block(const bgzf_block_t* b) {
 }
 
 bool is_bam(const bam_rec_t* r) {
-    return r->block_size > 100 &&
-        r->block_size < 10000 &&
-        r->l_seq > 1 &&
-        r->l_seq < 500;
+    bool basic_checks = r->l_seq > 0 &&
+        r->l_seq < 500 &&
+        r->block_size > r->l_seq &&
+        r->block_size < 2000 &&
+        -1 <= r->ref_id &&
+        -1 <= r->next_ref_id &&
+        //r->next_ref_id < r->n_ref &&
+        r->l_read_name + 4*r->n_cigar_op + r->l_seq < r->block_size;
+
+    if (!basic_checks) return false;
+
+    if (bam_read_name(r)[r->l_read_name - 1] != '\0') return false;
+
+    return true;
+}
+
+bool is_bam_new(const bam_rec_t* r) {
+    cout << endl;
+    PRINT(r->block_size);
+    PRINT((int)r->l_read_name);
+    PRINT(r->n_cigar_op);
+    PRINT(r->l_seq);
+    PRINT(bam_read_name(r)[0]);
+    cout << endl;
+    return true;
 }
 
 
@@ -121,6 +142,9 @@ std::vector<region> slicer_to_regions(SLICER_T slicer, size_t start_offset, size
                 auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[uoffset]);
 
                 if (is_bam(bam_rec)) {
+
+                    //is_bam_new(bam_rec);
+
                     found = true;
                     ioffset = calc_ioffset(coffset, uoffset);
                     break;
@@ -196,52 +220,52 @@ int main(int argc, char** argv) {
     auto last_mapped_region = index_regions[index_regions.size() - 1];
 
 
-    cout << "slicer_to_regions" << endl;
+    //cout << "slicer_to_regions" << endl;
     auto regions = slicer_to_regions(slicer);
     //auto regions = slicer_to_regions(slicer, 0, 4733653485);
     //auto regions = slicer_to_regions(slicer, 1000000);
     
-    for (auto& region : regions) {
-        print_region(region);
-    }
+    //for (auto& region : regions) {
+    //    print_region(region);
+    //}
 
-    uint64_t min_size = 1000000000;
-    uint64_t max_size = 0;
-    vector<uint64_t> sizes;
-    for (auto& region : regions) {
+    //uint64_t min_size = 1000000000;
+    //uint64_t max_size = 0;
+    //vector<uint64_t> sizes;
+    //for (auto& region : regions) {
 
-        //print_region(region);
+    //    //print_region(region);
 
-        auto size = index_coffset(region.second) - index_coffset(region.first);
-        sizes.push_back(size);
-        if (size < min_size) {
-            min_size = size;
-        }
-        if (size > max_size) {
-            max_size = size;
-        }
+    //    auto size = index_coffset(region.second) - index_coffset(region.first);
+    //    sizes.push_back(size);
+    //    if (size < min_size) {
+    //        min_size = size;
+    //    }
+    //    if (size > max_size) {
+    //        max_size = size;
+    //    }
 
-        //if (size > 5000000) {
-        //    cout << size << endl;
-        //}
-    }
+    //    //if (size > 5000000) {
+    //    //    cout << size << endl;
+    //    //}
+    //}
 
-    if (sizes.size() > 0) {
-        uint64_t sum = 0;
-        for (auto& size : sizes) {
-            sum += size;
-        }
-        auto avg = sum / sizes.size();
+    //if (sizes.size() > 0) {
+    //    uint64_t sum = 0;
+    //    for (auto& size : sizes) {
+    //        sum += size;
+    //    }
+    //    auto avg = sum / sizes.size();
 
-        cout << "number of regions: " << regions.size() << endl;
-        cout << "min region size: " << min_size << endl;
-        cout << "max region size: " << max_size << endl;
-        cout << "avg region size: " << avg << endl;
-    }
+    //    cout << "number of regions: " << regions.size() << endl;
+    //    cout << "min region size: " << min_size << endl;
+    //    cout << "max region size: " << max_size << endl;
+    //    cout << "avg region size: " << avg << endl;
+    //}
 
     uint64_t records = 0;
 
-    cout << "counts" << endl;
+    //cout << "counts" << endl;
 
 #pragma omp parallel for reduction(+:records)
     for(size_t i=0; i<regions.size(); i++) {
@@ -252,7 +276,7 @@ int main(int argc, char** argv) {
         records += record_count;
     }
 
-    std::cout<<"total records="<<records<<std::endl;
+    std::cout<<records<<std::endl;
 
 
 
