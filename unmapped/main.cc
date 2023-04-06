@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <fstream>
 #include <cmath>
+#include <omp.h>
 
 #include <quickbam/bam.h>
 #include <quickbam/slicer.h>
@@ -110,18 +111,24 @@ uint64_t calc_ioffset(uint64_t coffset, uint64_t uoffset) {
 template<typename SLICER_T>
 std::vector<region> slicer_to_regions(SLICER_T slicer, size_t start_offset, size_t end_offset) {
 
-    std::vector<region> regions;
 
     const size_t CHUNK_SZ = 1024*1024;
 
-    uint64_t region_start = 0;
-    uint64_t ioffset = 0;
-    bool first = true;
-    bool found = false;
+
+
+    //std::vector<std::vector<region>> all_regions(num_chunks);
+
+    auto num_chunks = (end_offset - start_offset) / CHUNK_SZ;
+    
+    std::vector<size_t> region_starts(num_chunks);
 
     //for (size_t start_idx = 0; start_idx < 10000000; start_idx += CHUNK_SZ) {
-    for (size_t start_idx = start_offset; start_idx < end_offset; start_idx += CHUNK_SZ) {
-        //cout << "start_idx: " << start_idx << endl;
+    //for (size_t start_idx = start_offset; start_idx < end_offset; start_idx += CHUNK_SZ) {
+#pragma omp parallel for
+    for (size_t chunk_idx = 0; chunk_idx < num_chunks; chunk_idx++) {
+
+        auto start_idx = chunk_idx*CHUNK_SZ;
+
         auto block_idx = bgzf_find_next_block(slicer, start_idx);
 
         bgzf_slicer_iterator_t bgzf_it(slicer, block_idx);
@@ -129,7 +136,7 @@ std::vector<region> slicer_to_regions(SLICER_T slicer, size_t start_offset, size
 
         uint64_t coffset = block_idx;
 
-        found = false;
+        bool found = false;
         while (bgzf_it != bgzf_end) {
 
             const bgzf_block_t& block = *bgzf_it;
@@ -146,7 +153,8 @@ std::vector<region> slicer_to_regions(SLICER_T slicer, size_t start_offset, size
                     //is_bam_new(bam_rec);
 
                     found = true;
-                    ioffset = calc_ioffset(coffset, uoffset);
+                    uint64_t ioffset = calc_ioffset(coffset, uoffset);
+                    region_starts[chunk_idx] = ioffset;
                     break;
                 }
             }
@@ -159,23 +167,30 @@ std::vector<region> slicer_to_regions(SLICER_T slicer, size_t start_offset, size
             bgzf_it++;
         }
 
-        if (found) {
-            if (first) {
-                first = false;
-                region_start = ioffset;
-            }
-            else {
-                regions.push_back({ region_start, ioffset });
-                region_start = ioffset;
-            }
-        }
-
         assert(found);
     }
 
 
-    if (index_coffset(region_start) < end_offset) {
-        regions.push_back({ region_start, calc_ioffset(end_offset, 0) });
+    std::vector<region> regions;
+
+    auto first = true;
+    uint64_t region_start = 0;
+    for (auto& cur_start : region_starts) {
+        if (first) {
+            first = false;
+        }
+        else {
+            auto region_end = cur_start;
+            regions.push_back({ region_start, region_end });
+        }
+
+        region_start = cur_start;
+    }
+
+    auto last_start = region_starts[num_chunks - 1];
+
+    if (index_coffset(last_start) < end_offset) {
+        regions.push_back({ last_start, calc_ioffset(end_offset, 0) });
     }
 
     return regions;
