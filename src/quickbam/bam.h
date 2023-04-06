@@ -88,6 +88,8 @@ size_t bam_count_records(const std::vector<uint8_t>& buffer);
 //! returns the total length of the query string of the bam record
 int16_t bam_query_length(const bam_rec_t* b);
 
+bool bam_is_valid(const bam_rec_t* r);
+
 //! returns the read name of the bam record
 inline std::string bam_read_name(const bam_rec_t* b) {
     return std::string(b->vardata, b->vardata + b->l_read_name - 1);
@@ -131,9 +133,6 @@ const uint8_t bam_c_hi = 0x20;
 const uint8_t bam_g_hi = 0x40;
 const uint8_t bam_t_hi = 0x80;
 
-const uint64_t MAX_BSIZE = 65536;
-
-
 
 inline char byte2base_lo(const uint8_t base) {
     return base & bam_a_lo ? 'A' :
@@ -165,12 +164,12 @@ std::vector<uint8_t> bam_load_block(SLICER_T data, uint64_t ioffset_first, uint6
     auto coffset_last = index_coffset(ioffset_last);
     auto uoffset_last = index_uoffset(ioffset_last);
 
-    // TODO: We're adding MAX_BSIZE here because coffset_last represents the
-    // *beginning* of the last block. MAX_BSIZE guarantees we slice enough
-    // data to decompress the whole block. It might be better to read the
-    // block header and figure out exactly how much we need to read, but I'm
-    // guessing the extra IO might actually be slower.
-    auto load_end = coffset_last + MAX_BSIZE;
+    // TODO: We're adding BGZF_MAX_BLOCK_SIZE here because coffset_last
+    // represents the *beginning* of the last block. BGZF_MAX_BLOCK_SIZE
+    // guarantees we slice enough data to decompress the whole block. It might
+    // be better to read the block header and figure out exactly how much we
+    // need to read, but I'm guessing the extra IO might actually be slower.
+    auto load_end = coffset_last + BGZF_MAX_BLOCK_SIZE;
     auto slice = data.slice(coffset_first, load_end < data.size() ? load_end : data.size());
 
     auto bgzf_block_first = reinterpret_cast<const bgzf_block_t*>(slice.get());
@@ -385,6 +384,101 @@ std::vector<uint8_t> bam_load_region(SLICER_T data, const index_t& index, int32_
             bam_buffer_preload.cbegin() + first_in_region,
             bam_buffer_preload.cend());
 
+}
+
+
+inline uint64_t calc_ioffset(uint64_t coffset, uint64_t uoffset) {
+    return (coffset << 16) | uoffset;
+}
+
+
+
+template<typename SLICER_T>
+std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_offset, size_t end_offset) {
+
+    const size_t CHUNK_SZ = 1024*1024;
+
+    auto num_chunks = (end_offset - start_offset) / CHUNK_SZ;
+    
+    std::vector<size_t> region_starts(num_chunks);
+
+#pragma omp parallel for
+    for (size_t chunk_idx = 0; chunk_idx < num_chunks; chunk_idx++) {
+
+        auto start_idx = chunk_idx*CHUNK_SZ;
+
+        auto block_idx = bgzf_find_next_block(slicer, start_idx);
+
+        bgzf_slicer_iterator_t<SLICER_T> bgzf_it(slicer, block_idx);
+        auto bgzf_end = bgzf_it.end();
+
+        uint64_t coffset = block_idx;
+
+        bool found = false;
+        while (bgzf_it != bgzf_end) {
+
+            const bgzf_block_t& block = *bgzf_it;
+
+            auto block_bytes = bgzf_inflate(block);
+
+            for (size_t uoffset = 0; uoffset < block_bytes.size(); uoffset++) {
+                // TODO: apparently with HG002.GRCh38.2x250.bam j is never greater
+                // than 0?
+                auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[uoffset]);
+
+                if (bam_is_valid(bam_rec)) {
+                    found = true;
+                    uint64_t ioffset = calc_ioffset(coffset, uoffset);
+                    region_starts[chunk_idx] = ioffset;
+                    break;
+                }
+            }
+
+            if (found) {
+                break;
+            }
+
+            coffset += (block.bsize + 1);
+            bgzf_it++;
+        }
+
+        assert(found);
+    }
+
+    std::vector<region> regions;
+
+    auto first = true;
+    uint64_t region_start = 0;
+    for (auto& cur_start : region_starts) {
+        if (first) {
+            first = false;
+        }
+        else {
+            auto region_end = cur_start;
+            regions.push_back({ region_start, region_end });
+        }
+
+        region_start = cur_start;
+    }
+
+    auto last_start = region_starts[num_chunks - 1];
+
+    if (index_coffset(last_start) < end_offset) {
+        regions.push_back({ last_start, calc_ioffset(end_offset, 0) });
+    }
+
+    return regions;
+}
+
+
+template<typename SLICER_T>
+std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_offset) {
+    return bam_to_regions(slicer, start_offset, slicer.size());
+}
+
+template<typename SLICER_T>
+std::vector<region> bam_to_regions(SLICER_T slicer) {
+    return bam_to_regions(slicer, 0, slicer.size());
 }
 
 #endif
