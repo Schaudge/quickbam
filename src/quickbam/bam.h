@@ -396,7 +396,7 @@ inline uint64_t calc_ioffset(uint64_t coffset, uint64_t uoffset) {
 template<typename SLICER_T>
 std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_offset, size_t end_offset) {
 
-    const size_t CHUNK_SZ = 1024*1024;
+    const size_t CHUNK_SZ = 1024*1024*10;
 
     auto num_chunks = (end_offset - start_offset) / CHUNK_SZ;
     

@@ -13,6 +13,7 @@ readcount_quickbam_CXXFLAGS = -fopenmp
 readcount_quickbam_LDADD    = $(top_builddir)/src/libquickbam.la -ltbb -ldeflate
 
 flagstats_quickbam_SOURCES = flagstats-quickbam.cc
+flagstats_quickbam_CXXFLAGS = -fopenmp
 flagstats_quickbam_LDADD   = $(top_builddir)/src/libquickbam.la -ltbb -ldeflate
 
 snp_pileup_quickbam_SOURCES = snp-pileup-quickbam.cc
