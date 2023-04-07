@@ -401,50 +401,53 @@ std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_offset, size_t 
     auto num_chunks = (end_offset - start_offset) / CHUNK_SZ;
     
     std::vector<size_t> region_starts(num_chunks);
+    tbb::this_task_arena::isolate([&] {
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, num_chunks), [&](const auto& r){
 
-#pragma omp parallel for
-    for (size_t chunk_idx = 0; chunk_idx < num_chunks; chunk_idx++) {
+            for (size_t chunk_idx = r.begin(); chunk_idx < r.end(); chunk_idx++) {
 
-        auto start_idx = start_offset + (chunk_idx * CHUNK_SZ);
+                auto start_idx = start_offset + (chunk_idx * CHUNK_SZ);
 
 
-        auto block_idx = bgzf_find_next_block(slicer, start_idx);
+                auto block_idx = bgzf_find_next_block(slicer, start_idx);
 
-        bgzf_slicer_iterator_t<SLICER_T> bgzf_it(slicer, block_idx);
-        auto bgzf_end = bgzf_it.end();
+                bgzf_slicer_iterator_t<SLICER_T> bgzf_it(slicer, block_idx);
+                auto bgzf_end = bgzf_it.end();
 
-        uint64_t coffset = block_idx;
+                uint64_t coffset = block_idx;
 
-        bool found = false;
-        while (bgzf_it != bgzf_end) {
+                bool found = false;
+                while (bgzf_it != bgzf_end) {
 
-            const bgzf_block_t& block = *bgzf_it;
+                    const bgzf_block_t& block = *bgzf_it;
 
-            auto block_bytes = bgzf_inflate(block);
+                    auto block_bytes = bgzf_inflate(block);
 
-            for (size_t uoffset = 0; uoffset < block_bytes.size(); uoffset++) {
-                // TODO: apparently with HG002.GRCh38.2x250.bam j is never greater
-                // than 0?
-                auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[uoffset]);
+                    for (size_t uoffset = 0; uoffset < block_bytes.size(); uoffset++) {
+                        // TODO: apparently with HG002.GRCh38.2x250.bam j is never greater
+                        // than 0?
+                        auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[uoffset]);
 
-                if (bam_is_valid(bam_rec)) {
-                    found = true;
-                    uint64_t ioffset = calc_ioffset(coffset, uoffset);
-                    region_starts[chunk_idx] = ioffset;
-                    break;
+                        if (bam_is_valid(bam_rec)) {
+                            found = true;
+                            uint64_t ioffset = calc_ioffset(coffset, uoffset);
+                            region_starts[chunk_idx] = ioffset;
+                            break;
+                        }
+                    }
+
+                    if (found) {
+                        break;
+                    }
+
+                    coffset += (block.bsize + 1);
+                    bgzf_it++;
                 }
+
+                assert(found);
             }
-
-            if (found) {
-                break;
-            }
-
-            coffset += (block.bsize + 1);
-            bgzf_it++;
-        }
-
-        assert(found);
-    }
+        });
+    });
 
     std::vector<region> regions;
 
