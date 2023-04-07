@@ -405,7 +405,8 @@ std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_offset, size_t 
 #pragma omp parallel for
     for (size_t chunk_idx = 0; chunk_idx < num_chunks; chunk_idx++) {
 
-        auto start_idx = chunk_idx*CHUNK_SZ;
+        auto start_idx = start_offset + (chunk_idx * CHUNK_SZ);
+
 
         auto block_idx = bgzf_find_next_block(slicer, start_idx);
 
