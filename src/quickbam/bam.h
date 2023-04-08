@@ -401,7 +401,7 @@ struct bam_find_result_t {
 };
 
 template<typename SLICER_T>
-bam_find_result_t bam_find_next_read(SLICER_T slicer, size_t start_coffset) {
+bam_find_result_t bam_find_next_read(SLICER_T slicer, size_t start_coffset, size_t start_uoffset) {
 
     auto block_idx = bgzf_find_next_block(slicer, start_coffset);
 
@@ -420,7 +420,7 @@ bam_find_result_t bam_find_next_read(SLICER_T slicer, size_t start_coffset) {
 
         auto block_bytes = bgzf_inflate(block);
 
-        for (uoffset = 0; uoffset < block_bytes.size(); uoffset++) {
+        for (uoffset = start_uoffset; uoffset < block_bytes.size(); uoffset++) {
             // TODO: apparently with HG002.GRCh38.2x250.bam j is never greater
             // than 0?
             auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[uoffset]);
@@ -441,6 +441,11 @@ bam_find_result_t bam_find_next_read(SLICER_T slicer, size_t start_coffset) {
 }
 
 
+//! Function to build a list of regions without an index
+//
+//! \param data Slicer object which abstracts over the source BAM file.
+//! \param start_ioffset The ioffset (as defined in the SAM spec) to start from
+//! \return A vector containing the list of regions
 template<typename SLICER_T>
 std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset, bool starts_on_read) {
 
@@ -473,9 +478,10 @@ std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset, bool s
 
             for (size_t chunk_idx = r.begin(); chunk_idx < r.end(); chunk_idx++) {
 
-                auto start_idx = start_coffset + (chunk_idx * CHUNK_SZ);
+                auto search_coffset = start_coffset + (chunk_idx * CHUNK_SZ);
+                auto search_uoffset = start_uoffset;
 
-                auto result = bam_find_next_read(slicer, start_idx);
+                auto result = bam_find_next_read(slicer, search_coffset, start_uoffset);
                 assert(result.success);
 
                 region_starts[chunk_idx] = result.ioffset;
