@@ -80,6 +80,12 @@ struct bam_rec_t {
     //      value;              // Value (type by val_type)
 };
 
+//! This struct is the return type for bam_find_next_read
+struct bam_find_result_t {
+    bool success;
+    size_t ioffset;
+};
+
 using bam_iterator = nfo_iterator<bam_rec_t, uint32_t, 0, sizeof(uint32_t)>;
 
 //! check if the given buffer contains a complete bam header record
@@ -390,16 +396,15 @@ std::vector<uint8_t> bam_load_region(SLICER_T data, const index_t& index, int32_
 }
 
 
-inline uint64_t calc_ioffset(uint64_t coffset, uint64_t uoffset) {
-    return (coffset << 16) | uoffset;
-}
 
 
-struct bam_find_result_t {
-    bool success;
-    size_t ioffset;
-};
 
+//! Helper function to find the next BAM read in a given slicer
+//
+//! \param data Slicer object which abstracts over the source BAM file
+//! \param start_coffset The coffset to start searching from
+//! \param start_uoffset The uoffset to start searching from 
+//! \return Indication of success and ioffset of the found BAM read
 template<typename SLICER_T>
 bam_find_result_t bam_find_next_read(SLICER_T slicer, size_t start_coffset, size_t start_uoffset) {
 
@@ -426,7 +431,7 @@ bam_find_result_t bam_find_next_read(SLICER_T slicer, size_t start_coffset, size
             auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[uoffset]);
 
             if (bam_is_valid(bam_rec)) {
-                uint64_t ioffset = calc_ioffset(coffset, uoffset);
+                uint64_t ioffset = index_ioffset(coffset, uoffset);
                 result.success = true;
                 result.ioffset = ioffset;
                 return result;
@@ -447,7 +452,7 @@ bam_find_result_t bam_find_next_read(SLICER_T slicer, size_t start_coffset, size
 //! \param start_ioffset The ioffset (as defined in the SAM spec) to start from
 //! \return A vector containing the list of regions
 template<typename SLICER_T>
-std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset, bool starts_on_read) {
+std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset) {
 
     auto start_coffset = index_coffset(start_ioffset);
     auto start_uoffset = index_uoffset(start_ioffset);
@@ -464,8 +469,8 @@ std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset, bool s
         // already a valid bgzf block. But that seems unlikely since the
         // offset probably came from an index.
         regions.push_back({
-            calc_ioffset(start_coffset, start_uoffset),
-            calc_ioffset(end_coffset, 0)
+            index_ioffset(start_coffset, start_uoffset),
+            index_ioffset(end_coffset, 0)
         });
         return regions;
     }
@@ -506,21 +511,16 @@ std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset, bool s
     auto last_start = region_starts[num_chunks - 1];
 
     if (index_coffset(last_start) < end_coffset) {
-        regions.push_back({ last_start, calc_ioffset(end_coffset, 0) });
+        regions.push_back({ last_start, index_ioffset(end_coffset, 0) });
     }
 
     return regions;
 }
 
 template<typename SLICER_T>
-std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset) {
-    return bam_to_regions(slicer, start_ioffset, false);
-}
-
-template<typename SLICER_T>
 std::vector<region> bam_to_regions(SLICER_T slicer) {
     // Start at beginning of data
-    return bam_to_regions(slicer, 0, false);
+    return bam_to_regions(slicer, 0);
 }
 
 #endif
