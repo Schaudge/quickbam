@@ -458,7 +458,7 @@ std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset) {
     auto start_uoffset = index_uoffset(start_ioffset);
     size_t end_coffset = slicer.size();
 
-    const size_t CHUNK_SZ = 1024*1024;
+    const size_t CHUNK_SZ = 1024*1024*10;
 
     std::vector<region> regions;
 
