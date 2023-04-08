@@ -35,6 +35,9 @@
 
 #define CHUNK_SIZE 16384
 
+// Macro for debug printing
+#define PRINT(x) std::cout << #x << ": " << x << std::endl;
+
 //! This struct mirrors the byte layout of uncompressed bam header
 struct bam_header_t {
     char magic[4];      // BAM\1
@@ -392,64 +395,93 @@ inline uint64_t calc_ioffset(uint64_t coffset, uint64_t uoffset) {
 }
 
 
+struct bam_find_result_t {
+    bool success;
+    size_t ioffset;
+};
 
 template<typename SLICER_T>
-std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_offset, size_t end_offset) {
+bam_find_result_t bam_find_next_read(SLICER_T slicer, size_t start_coffset) {
+
+    auto block_idx = bgzf_find_next_block(slicer, start_coffset);
+
+    bgzf_slicer_iterator_t<SLICER_T> bgzf_it(slicer, block_idx);
+    auto bgzf_end = bgzf_it.end();
+
+    uint64_t coffset = block_idx;
+    size_t uoffset = 0;
+
+    bam_find_result_t result;
+    result.success = false;
+
+    while (bgzf_it != bgzf_end) {
+
+        const bgzf_block_t& block = *bgzf_it;
+
+        auto block_bytes = bgzf_inflate(block);
+
+        for (uoffset = 0; uoffset < block_bytes.size(); uoffset++) {
+            // TODO: apparently with HG002.GRCh38.2x250.bam j is never greater
+            // than 0?
+            auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[uoffset]);
+
+            if (bam_is_valid(bam_rec)) {
+                uint64_t ioffset = calc_ioffset(coffset, uoffset);
+                result.success = true;
+                result.ioffset = ioffset;
+                return result;
+            }
+        }
+
+        coffset += (block.bsize + 1);
+        bgzf_it++;
+    }
+
+    return result;
+}
+
+
+template<typename SLICER_T>
+std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset, bool starts_on_read) {
+
+    auto start_coffset = index_coffset(start_ioffset);
+    auto start_uoffset = index_uoffset(start_ioffset);
+    size_t end_coffset = slicer.size();
 
     const size_t CHUNK_SZ = 1024*1024;
 
-    auto num_chunks = (end_offset - start_offset) / CHUNK_SZ;
-    
+    std::vector<region> regions;
+
+    // If the total range is less than CHUNK_SZ, simply return a single
+    // region from the start to the end of the file.
+    if (end_coffset - start_coffset < CHUNK_SZ) {
+        // TODO: Might need to handle the case where start_coffset isn't
+        // already a valid bgzf block. But that seems unlikely since the
+        // offset probably came from an index.
+        regions.push_back({
+            calc_ioffset(start_coffset, start_uoffset),
+            calc_ioffset(end_coffset, 0)
+        });
+        return regions;
+    }
+
+    auto num_chunks = (end_coffset - start_coffset) / CHUNK_SZ;
+
     std::vector<size_t> region_starts(num_chunks);
     tbb::this_task_arena::isolate([&] {
         tbb::parallel_for(tbb::blocked_range<size_t>(0, num_chunks), [&](const auto& r){
 
             for (size_t chunk_idx = r.begin(); chunk_idx < r.end(); chunk_idx++) {
 
-                auto start_idx = start_offset + (chunk_idx * CHUNK_SZ);
+                auto start_idx = start_coffset + (chunk_idx * CHUNK_SZ);
 
+                auto result = bam_find_next_read(slicer, start_idx);
+                assert(result.success);
 
-                auto block_idx = bgzf_find_next_block(slicer, start_idx);
-
-                bgzf_slicer_iterator_t<SLICER_T> bgzf_it(slicer, block_idx);
-                auto bgzf_end = bgzf_it.end();
-
-                uint64_t coffset = block_idx;
-
-                bool found = false;
-                while (bgzf_it != bgzf_end) {
-
-                    const bgzf_block_t& block = *bgzf_it;
-
-                    auto block_bytes = bgzf_inflate(block);
-
-                    for (size_t uoffset = 0; uoffset < block_bytes.size(); uoffset++) {
-                        // TODO: apparently with HG002.GRCh38.2x250.bam j is never greater
-                        // than 0?
-                        auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[uoffset]);
-
-                        if (bam_is_valid(bam_rec)) {
-                            found = true;
-                            uint64_t ioffset = calc_ioffset(coffset, uoffset);
-                            region_starts[chunk_idx] = ioffset;
-                            break;
-                        }
-                    }
-
-                    if (found) {
-                        break;
-                    }
-
-                    coffset += (block.bsize + 1);
-                    bgzf_it++;
-                }
-
-                assert(found);
+                region_starts[chunk_idx] = result.ioffset;
             }
         });
     });
-
-    std::vector<region> regions;
 
     auto first = true;
     uint64_t region_start = 0;
@@ -467,22 +499,22 @@ std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_offset, size_t 
 
     auto last_start = region_starts[num_chunks - 1];
 
-    if (index_coffset(last_start) < end_offset) {
-        regions.push_back({ last_start, calc_ioffset(end_offset, 0) });
+    if (index_coffset(last_start) < end_coffset) {
+        regions.push_back({ last_start, calc_ioffset(end_coffset, 0) });
     }
 
     return regions;
 }
 
-
 template<typename SLICER_T>
-std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_offset) {
-    return bam_to_regions(slicer, start_offset, slicer.size());
+std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset) {
+    return bam_to_regions(slicer, start_ioffset, false);
 }
 
 template<typename SLICER_T>
 std::vector<region> bam_to_regions(SLICER_T slicer) {
-    return bam_to_regions(slicer, 0, slicer.size());
+    // Start at beginning of data
+    return bam_to_regions(slicer, 0, false);
 }
 
 #endif
