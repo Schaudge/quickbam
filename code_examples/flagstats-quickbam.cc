@@ -251,20 +251,17 @@ int main(int argc, char *argv[])
     regions.pop_back();
 
 
-    std::cerr<<"starting scanning unmapped region at "<<(last_ioffset>>16)<<std::endl;
     clk_start = instrument->get_clock();
     auto regions_unmapped = bam_to_regions(data, last_ioffset >> 16 );
     instrument->add_measurement("bam2regions", clk_start);
-    std::cerr<<"first region looks like "<<regions_unmapped.cbegin()->first<<":"<<regions_unmapped.cbegin()->second<<std::endl;
-    std::cerr<<"first region looks like "<<(regions_unmapped.cbegin()->first >> 16)<<":"<<(regions_unmapped.cbegin()->second >> 16)<<std::endl;
+
+    regions_unmapped[0].first = last_ioffset;
 
     clk_start = instrument->get_clock();
     regions.insert(regions.end(), std::make_move_iterator(regions_unmapped.cbegin()), std::make_move_iterator(regions_unmapped.cend()));
     instrument->add_measurement("regions.insert", clk_start);
 
     index_free(index);
-
-    return 0;
 
     //s = bam_flagstat_core(fp, header);
     s = bam_flagstat_core(data, regions);
