@@ -252,7 +252,7 @@ int main(int argc, char *argv[])
 
 
     clk_start = instrument->get_clock();
-    auto regions_unmapped = bam_to_regions(data, last_ioffset >> 16 );
+    auto regions_unmapped = bam_to_regions(data, last_ioffset);
     instrument->add_measurement("bam2regions", clk_start);
 
     regions_unmapped[0].first = last_ioffset;
