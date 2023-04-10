@@ -37,6 +37,8 @@ constexpr auto bgzf_xlen_offset = 10;
 constexpr auto bgzf_block_size_offset = 16;
 constexpr auto bgzf_cdata_offset = 18;
 
+const uint32_t BGZF_MAX_BLOCK_SIZE = 65536;
+
 constexpr uint8_t eof_bytes[] = {
     0x1f, 0x8b, 0x08, 0x04,
     0x00, 0x00, 0x00, 0x00,
@@ -202,5 +204,30 @@ std::vector<uint8_t> bgzf_inflate_range_p(const uint8_t *src, const size_t src_l
             const std::vector<size_t>&,
             const std::vector<size_t>&,
             size_t (*)(const uint8_t*, size_t, uint8_t*, size_t))>& parallel_inflate);
+
+
+template<typename SLICER_T>
+size_t bgzf_find_next_block(SLICER_T slicer, size_t start_offset) {
+
+    // A valid BGZF file should never have more than 64k bytes between blocks.
+    // Therefore when searching for a valid block header (bgzf_block_t), the
+    // worst case is that the block starts at 64k-1 from the start of the
+    // search. So we should never need more than 64k+sizeof(bgzf_block_t)-1
+    // bytes to find a valid header.
+    const uint32_t SLICE_SIZE = BGZF_MAX_BLOCK_SIZE + sizeof(bgzf_block_t) - 1;
+
+    auto slice = slicer.slice(start_offset, start_offset + SLICE_SIZE);
+
+    for (size_t i = 0; i < SLICE_SIZE; i++) {
+        auto blk = reinterpret_cast<const bgzf_block_t*>(&(slice.get()[i]));
+        if (blk->id1 == 31 && blk->id2 == 139 && blk->si1 == 66 && blk->si2 == 67 && blk->slen == 2) {
+            return start_offset + i;
+        }
+    }
+
+    // TODO: properly handle error conditions
+    assert(0 != 1);
+    return 0;
+}
 
 #endif

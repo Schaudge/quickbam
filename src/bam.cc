@@ -65,3 +65,20 @@ int16_t bam_query_length(const bam_rec_t* b) {
     }
     return ql;
 }
+
+bool bam_is_valid(const bam_rec_t* r) {
+    bool basic_checks = r->l_seq > 0 &&
+        r->l_seq < 500 &&
+        r->block_size > r->l_seq &&
+        r->block_size < 2000 &&
+        -1 <= r->ref_id &&
+        -1 <= r->next_ref_id &&
+        //r->next_ref_id < r->n_ref &&
+        r->l_read_name + 4*r->n_cigar_op + r->l_seq < r->block_size;
+
+    if (!basic_checks) return false;
+
+    if (bam_read_name(r)[r->l_read_name - 1] != '\0') return false;
+
+    return true;
+}

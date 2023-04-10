@@ -46,6 +46,9 @@ inline uint64_t index_coffset(uint64_t offset) { return offset >> 16; }
 //! calculates the uoffset from the given virtual offset
 inline uint16_t index_uoffset(uint64_t offset) { return static_cast<uint16_t>(offset); }
 
+//! calculates the virtual offset from the given coffset and uoffset
+inline uint64_t index_ioffset(uint64_t coffset, uint64_t uoffset) { return (coffset << 16) | uoffset; }
+
 //! release the memory used by the internal structure of a loaded BAI file
 void index_free(index_t& index);
 

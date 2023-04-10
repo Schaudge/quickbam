@@ -35,6 +35,9 @@
 
 #define CHUNK_SIZE 16384
 
+// Macro for debug printing
+#define PRINT(x) std::cout << #x << ": " << x << std::endl;
+
 //! This struct mirrors the byte layout of uncompressed bam header
 struct bam_header_t {
     char magic[4];      // BAM\1
@@ -77,6 +80,12 @@ struct bam_rec_t {
     //      value;              // Value (type by val_type)
 };
 
+//! This struct is the return type for bam_find_next_read
+struct bam_find_result_t {
+    bool success;
+    size_t ioffset;
+};
+
 using bam_iterator = nfo_iterator<bam_rec_t, uint32_t, 0, sizeof(uint32_t)>;
 
 //! check if the given buffer contains a complete bam header record
@@ -87,6 +96,8 @@ size_t bam_count_records(const std::vector<uint8_t>& buffer);
 
 //! returns the total length of the query string of the bam record
 int16_t bam_query_length(const bam_rec_t* b);
+
+bool bam_is_valid(const bam_rec_t* r);
 
 //! returns the read name of the bam record
 inline std::string bam_read_name(const bam_rec_t* b) {
@@ -131,9 +142,6 @@ const uint8_t bam_c_hi = 0x20;
 const uint8_t bam_g_hi = 0x40;
 const uint8_t bam_t_hi = 0x80;
 
-const uint64_t MAX_BSIZE = 65536;
-
-
 
 inline char byte2base_lo(const uint8_t base) {
     return base & bam_a_lo ? 'A' :
@@ -165,12 +173,12 @@ std::vector<uint8_t> bam_load_block(SLICER_T data, uint64_t ioffset_first, uint6
     auto coffset_last = index_coffset(ioffset_last);
     auto uoffset_last = index_uoffset(ioffset_last);
 
-    // TODO: We're adding MAX_BSIZE here because coffset_last represents the
-    // *beginning* of the last block. MAX_BSIZE guarantees we slice enough
-    // data to decompress the whole block. It might be better to read the
-    // block header and figure out exactly how much we need to read, but I'm
-    // guessing the extra IO might actually be slower.
-    auto load_end = coffset_last + MAX_BSIZE;
+    // TODO: We're adding BGZF_MAX_BLOCK_SIZE here because coffset_last
+    // represents the *beginning* of the last block. BGZF_MAX_BLOCK_SIZE
+    // guarantees we slice enough data to decompress the whole block. It might
+    // be better to read the block header and figure out exactly how much we
+    // need to read, but I'm guessing the extra IO might actually be slower.
+    auto load_end = coffset_last + BGZF_MAX_BLOCK_SIZE;
     auto slice = data.slice(coffset_first, load_end < data.size() ? load_end : data.size());
 
     auto bgzf_block_first = reinterpret_cast<const bgzf_block_t*>(slice.get());
@@ -385,6 +393,134 @@ std::vector<uint8_t> bam_load_region(SLICER_T data, const index_t& index, int32_
             bam_buffer_preload.cbegin() + first_in_region,
             bam_buffer_preload.cend());
 
+}
+
+
+
+
+
+//! Helper function to find the next BAM read in a given slicer
+//
+//! \param data Slicer object which abstracts over the source BAM file
+//! \param start_coffset The coffset to start searching from
+//! \param start_uoffset The uoffset to start searching from 
+//! \return Indication of success and ioffset of the found BAM read
+template<typename SLICER_T>
+bam_find_result_t bam_find_next_read(SLICER_T slicer, size_t start_coffset, size_t start_uoffset) {
+
+    auto block_idx = bgzf_find_next_block(slicer, start_coffset);
+
+    bgzf_slicer_iterator_t<SLICER_T> bgzf_it(slicer, block_idx);
+    auto bgzf_end = bgzf_it.end();
+
+    uint64_t coffset = block_idx;
+    size_t uoffset = 0;
+
+    bam_find_result_t result;
+    result.success = false;
+
+    while (bgzf_it != bgzf_end) {
+
+        const bgzf_block_t& block = *bgzf_it;
+
+        auto block_bytes = bgzf_inflate(block);
+
+        for (uoffset = start_uoffset; uoffset < block_bytes.size(); uoffset++) {
+            // TODO: apparently with HG002.GRCh38.2x250.bam j is never greater
+            // than 0?
+            auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[uoffset]);
+
+            if (bam_is_valid(bam_rec)) {
+                uint64_t ioffset = index_ioffset(coffset, uoffset);
+                result.success = true;
+                result.ioffset = ioffset;
+                return result;
+            }
+        }
+
+        coffset += (block.bsize + 1);
+        bgzf_it++;
+    }
+
+    return result;
+}
+
+
+//! Function to build a list of regions without an index
+//
+//! \param data Slicer object which abstracts over the source BAM file.
+//! \param start_ioffset The ioffset (as defined in the SAM spec) to start from
+//! \return A vector containing the list of regions
+template<typename SLICER_T>
+std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset) {
+
+    auto start_coffset = index_coffset(start_ioffset);
+    auto start_uoffset = index_uoffset(start_ioffset);
+    size_t end_coffset = slicer.size();
+
+    const size_t CHUNK_SZ = 1024*1024*10;
+
+    std::vector<region> regions;
+
+    // If the total range is less than CHUNK_SZ, simply return a single
+    // region from the start to the end of the file.
+    if (end_coffset - start_coffset < CHUNK_SZ) {
+        // TODO: Might need to handle the case where start_coffset isn't
+        // already a valid bgzf block. But that seems unlikely since the
+        // offset probably came from an index.
+        regions.push_back({
+            index_ioffset(start_coffset, start_uoffset),
+            index_ioffset(end_coffset, 0)
+        });
+        return regions;
+    }
+
+    auto num_chunks = (end_coffset - start_coffset) / CHUNK_SZ;
+
+    std::vector<size_t> region_starts(num_chunks);
+    tbb::this_task_arena::isolate([&] {
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, num_chunks), [&](const auto& r){
+
+            for (size_t chunk_idx = r.begin(); chunk_idx < r.end(); chunk_idx++) {
+
+                auto search_coffset = start_coffset + (chunk_idx * CHUNK_SZ);
+                auto search_uoffset = start_uoffset;
+
+                auto result = bam_find_next_read(slicer, search_coffset, start_uoffset);
+                assert(result.success);
+
+                region_starts[chunk_idx] = result.ioffset;
+            }
+        });
+    });
+
+    auto first = true;
+    uint64_t region_start = 0;
+    for (auto& cur_start : region_starts) {
+        if (first) {
+            first = false;
+        }
+        else {
+            auto region_end = cur_start;
+            regions.push_back({ region_start, region_end });
+        }
+
+        region_start = cur_start;
+    }
+
+    auto last_start = region_starts[num_chunks - 1];
+
+    if (index_coffset(last_start) < end_coffset) {
+        regions.push_back({ last_start, index_ioffset(end_coffset, 0) });
+    }
+
+    return regions;
+}
+
+template<typename SLICER_T>
+std::vector<region> bam_to_regions(SLICER_T slicer) {
+    // Start at beginning of data
+    return bam_to_regions(slicer, 0);
 }
 
 #endif

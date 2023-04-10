@@ -54,6 +54,7 @@ DEALINGS IN THE SOFTWARE.  */
 #include <quickbam/bam.h>
 #include <quickbam/index.h>
 #include <quickbam/slicer.h>
+#include <quickbam/instrument.h>
 
 // The following defs are taken from htslib/sam.h
 /*! @abstract the read is paired in sequencing, no matter whether it is mapped in a pair */
@@ -104,7 +105,6 @@ inline static void flagstat_loop(bam_flagstat_t *s, const BAM_T& b)
 {
     auto *c = &b;
     int w = (c->flag & BAM_FQCFAIL)? 1 : 0;
-    if(w) throw std::runtime_error("fail qc");
     ++s->n_reads[w];
     if (c->flag & BAM_FSECONDARY ) {
         ++s->n_secondary[w];
@@ -241,8 +241,14 @@ int main(int argc, char *argv[])
 
     auto regions = index_to_regions(index, data.size());
 
-    index_free(index);
+    auto last_ioffset = regions.rbegin()->first;
+    regions.pop_back();
 
+    auto regions_unmapped = bam_to_regions(data, last_ioffset);
+
+    regions.insert(regions.end(), std::make_move_iterator(regions_unmapped.cbegin()), std::make_move_iterator(regions_unmapped.cend()));
+
+    index_free(index);
 
     //s = bam_flagstat_core(fp, header);
     s = bam_flagstat_core(data, regions);

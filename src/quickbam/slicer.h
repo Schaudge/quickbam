@@ -53,6 +53,14 @@ struct file_slicer_t {
         file_size = stat_.st_size;
 
         fd = open(file_path.c_str(), O_RDONLY);
+
+        if (fd == -1) {
+            // TODO: We might want to consider changing the interface of
+            // file_slicer_t to take fd directly, and creating a wrapper
+            // function that can fail without throwing an exception.
+            throw std::invalid_argument("Failed to open file: '" + file_path +
+                "'. Are you sure the path is correct?");
+        }
     }
 
     //! Returns a slice containing the requested byte range of the underlying file
