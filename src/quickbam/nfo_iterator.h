@@ -1,5 +1,5 @@
-#ifndef NFO_ITERATOR_H
-#define NFO_ITERATOR_H
+#ifndef QUICKBAM_NFO_ITERATOR_H
+#define QUICKBAM_NFO_ITERATOR_H
 
 #include <unistd.h>
 #include <iostream>

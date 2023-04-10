@@ -1,5 +1,5 @@
-#ifndef SLICER_H
-#define SLICER_H
+#ifndef QUICKBAM_SLICER_H
+#define QUICKBAM_SLICER_H
 
 /*! Slicer type that abstracts over an mfile */
 struct mfile_slicer_t {
