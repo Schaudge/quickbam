@@ -105,7 +105,6 @@ inline static void flagstat_loop(bam_flagstat_t *s, const BAM_T& b)
 {
     auto *c = &b;
     int w = (c->flag & BAM_FQCFAIL)? 1 : 0;
-    if(w) throw std::runtime_error("fail qc");
     ++s->n_reads[w];
     if (c->flag & BAM_FSECONDARY ) {
         ++s->n_secondary[w];
@@ -214,9 +213,6 @@ static void output_fmt(bam_flagstat_t *s, const char *out_fmt)
 
 int main(int argc, char *argv[])
 {
-
-    auto& instrument = YiCppLib::Instrument<std::chrono::milliseconds>::instance();
-
     bam_flagstat_t *s;
     const char *out_fmt = "default";
     int c, status = EXIT_SUCCESS;
@@ -243,23 +239,14 @@ int main(int argc, char *argv[])
         return 1;
     }*/
 
-    auto clk_start = instrument->get_clock();
     auto regions = index_to_regions(index, data.size());
-    instrument->add_measurement("index2regions", clk_start);
 
     auto last_ioffset = regions.rbegin()->first;
     regions.pop_back();
 
-
-    clk_start = instrument->get_clock();
     auto regions_unmapped = bam_to_regions(data, last_ioffset);
-    instrument->add_measurement("bam2regions", clk_start);
 
-    regions_unmapped[0].first = last_ioffset;
-
-    clk_start = instrument->get_clock();
     regions.insert(regions.end(), std::make_move_iterator(regions_unmapped.cbegin()), std::make_move_iterator(regions_unmapped.cend()));
-    instrument->add_measurement("regions.insert", clk_start);
 
     index_free(index);
 
