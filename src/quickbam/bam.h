@@ -86,10 +86,82 @@ struct bam_find_result_t {
     size_t ioffset;
 };
 
+
+
 using bam_iterator = nfo_iterator<bam_rec_t, uint32_t, 0, sizeof(uint32_t)>;
 
 //! check if the given buffer contains a complete bam header record
 bool bam_buffer_contains_header(const std::vector<uint8_t>& buffer); 
+
+int32_t bam_consume_aux_item(const uint8_t* ptr, size_t max_size);
+
+
+namespace bam {
+
+class HeaderRef {
+    public:
+        std::string name;
+        uint32_t l_ref;
+
+        HeaderRef(std::string name, uint32_t l_ref) : name(name), l_ref(l_ref) {}
+};
+
+class Header {
+    public:
+        Header(std::vector<HeaderRef> refs) : _refs(refs) {}
+
+        const std::vector<HeaderRef>& refs() { return _refs; }
+
+        template<typename SLICER_T>
+        static Header from_slicer(SLICER_T slicer) {
+            std::vector<uint8_t> bam_buffer;
+
+            bgzf_slicer_iterator_t<SLICER_T> bgzf_iter(slicer);
+
+            for(auto& bgzf_block : bgzf_iter) {
+                auto de_buff = bgzf_inflate(bgzf_block);
+                bam_buffer.insert(bam_buffer.end(), de_buff.cbegin(), de_buff.cend());
+                if(bam_buffer_contains_header(bam_buffer)) break;
+            }
+
+            auto hdr = reinterpret_cast<bam_header_t*>(bam_buffer.data());
+
+            auto buffer_ptr = reinterpret_cast<const uint8_t*>(&hdr->vardata[0]);
+
+            buffer_ptr += hdr->l_text;
+
+            auto n_ref = *(uint32_t *)(buffer_ptr);
+
+            buffer_ptr += sizeof(uint32_t); // now buffer_ptr points at first ref
+
+            // TODO: do we need this?
+            //auto bam_has_prefix = strncmp((char *)(buffer_ptr + sizeof(uint32_t)), "chr", 3) == 0;
+
+            std::vector<HeaderRef> refs;
+
+            for(uint32_t i_ref = 0; i_ref < n_ref; i_ref++) {
+                uint32_t l_name = *(uint32_t *)(buffer_ptr);
+                buffer_ptr += sizeof(uint32_t);
+                // TODO: should we be using this one?
+                //std::string ref_name(buffer_ptr + (3 * bam_has_prefix), buffer_ptr + l_name - 1);
+                std::string ref_name(buffer_ptr, buffer_ptr + l_name - 1);
+                buffer_ptr += l_name;
+                uint32_t l_ref = *(uint32_t *)(buffer_ptr);
+                buffer_ptr += sizeof(uint32_t);
+
+                refs.push_back(HeaderRef(ref_name, l_ref));
+            }
+
+            return Header(refs);
+        }
+
+    private:
+        std::vector<HeaderRef> _refs;
+};
+
+
+
+};
 
 //! returns the number of complete bam records found in the given buffer
 size_t bam_count_records(const std::vector<uint8_t>& buffer);
@@ -97,7 +169,7 @@ size_t bam_count_records(const std::vector<uint8_t>& buffer);
 //! returns the total length of the query string of the bam record
 int16_t bam_query_length(const bam_rec_t* b);
 
-bool bam_is_valid(const bam_rec_t* r);
+bool bam_is_valid(bam::Header& header, const bam_rec_t* r);
 
 //! returns the read name of the bam record
 inline std::string bam_read_name(const bam_rec_t* b) {
@@ -406,7 +478,7 @@ std::vector<uint8_t> bam_load_region(SLICER_T data, const index_t& index, int32_
 //! \param start_uoffset The uoffset to start searching from 
 //! \return Indication of success and ioffset of the found BAM read
 template<typename SLICER_T>
-bam_find_result_t bam_find_next_read(SLICER_T slicer, size_t start_coffset, size_t start_uoffset) {
+bam_find_result_t bam_find_next_read(SLICER_T slicer, bam::Header header, size_t start_coffset, size_t start_uoffset) {
 
     auto block_idx = bgzf_find_next_block(slicer, start_coffset);
 
@@ -421,6 +493,7 @@ bam_find_result_t bam_find_next_read(SLICER_T slicer, size_t start_coffset, size
 
     while (bgzf_it != bgzf_end) {
 
+
         const bgzf_block_t& block = *bgzf_it;
 
         auto block_bytes = bgzf_inflate(block);
@@ -430,7 +503,7 @@ bam_find_result_t bam_find_next_read(SLICER_T slicer, size_t start_coffset, size
             // than 0?
             auto bam_rec = reinterpret_cast<const bam_rec_t*>(&block_bytes[uoffset]);
 
-            if (bam_is_valid(bam_rec)) {
+            if (bam_is_valid(header, bam_rec)) {
                 uint64_t ioffset = index_ioffset(coffset, uoffset);
                 result.success = true;
                 result.ioffset = ioffset;
@@ -453,6 +526,8 @@ bam_find_result_t bam_find_next_read(SLICER_T slicer, size_t start_coffset, size
 //! \return A vector containing the list of regions
 template<typename SLICER_T>
 std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset) {
+
+    auto header = bam::Header::from_slicer(slicer);
 
     auto start_coffset = index_coffset(start_ioffset);
     auto start_uoffset = index_uoffset(start_ioffset);
@@ -486,7 +561,7 @@ std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset) {
                 auto search_coffset = start_coffset + (chunk_idx * CHUNK_SZ);
                 auto search_uoffset = start_uoffset;
 
-                auto result = bam_find_next_read(slicer, search_coffset, start_uoffset);
+                auto result = bam_find_next_read(slicer, header, search_coffset, start_uoffset);
                 assert(result.success);
 
                 region_starts[chunk_idx] = result.ioffset;
@@ -522,5 +597,6 @@ std::vector<region> bam_to_regions(SLICER_T slicer) {
     // Start at beginning of data
     return bam_to_regions(slicer, 0);
 }
+
 
 #endif
