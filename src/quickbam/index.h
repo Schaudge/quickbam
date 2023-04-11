@@ -1,5 +1,5 @@
-#ifndef NVPL_INDEX_H
-#define NVPL_INDEX_H
+#ifndef QUICKBAM_INDEX_H
+#define QUICKBAM_INDEX_H
 
 #include <vector>
 #include "mfile.h"

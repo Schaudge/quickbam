@@ -1,5 +1,5 @@
-#ifndef MMBAM_MPILEUP_H
-#define MMBAM_MPILEUP_H
+#ifndef QUICKBAM_MPILEUP_H
+#define QUICKBAM_MPILEUP_H
 
 #include <vector>
 #include <list>

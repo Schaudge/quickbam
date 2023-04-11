@@ -1,5 +1,5 @@
-#ifndef MBGZF_H
-#define MBGZF_H
+#ifndef QUICKBAM_MBGZF_H
+#define QUICKBAM_MBGZF_H
 
 /****************************************************************
  * BGZF APIs implemented on memory buffers

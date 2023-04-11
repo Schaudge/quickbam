@@ -1,5 +1,5 @@
-#ifndef MMAP_FILE_H
-#define MMAP_FILE_H
+#ifndef QUICKBAM_MFILE_H
+#define QUICKBAM_MFILE_H
 
 #include <memory>
 #include <stdexcept>

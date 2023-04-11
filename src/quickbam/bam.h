@@ -1,5 +1,5 @@
-#ifndef BAM_H
-#define BAM_H
+#ifndef QUICKBAM_BAM_H
+#define QUICKBAM_BAM_H
 
 /****************************************************************
  * BAM file structure APIs implemented on memory buffers
