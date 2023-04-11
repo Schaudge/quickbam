@@ -66,19 +66,171 @@ int16_t bam_query_length(const bam_rec_t* b) {
     return ql;
 }
 
-bool bam_is_valid(const bam_rec_t* r) {
-    bool basic_checks = r->l_seq > 0 &&
-        r->l_seq < 500 &&
-        r->block_size > r->l_seq &&
-        r->block_size < 2000 &&
-        -1 <= r->ref_id &&
-        -1 <= r->next_ref_id &&
-        //r->next_ref_id < r->n_ref &&
-        r->l_read_name + 4*r->n_cigar_op + r->l_seq < r->block_size;
+struct bam_header_aux_data_t {
+    char tag[2];
+    char val_type;
+    uint8_t vardata[];
+};
 
-    if (!basic_checks) return false;
+int32_t bam_consume_aux_item(const uint8_t* ptr, size_t max_size) {
+    auto aux = reinterpret_cast<const bam_header_aux_data_t*>(ptr);
 
-    if (bam_read_name(r)[r->l_read_name - 1] != '\0') return false;
+    int32_t consumed = sizeof(bam_header_aux_data_t);
+
+    switch (aux->val_type) {
+        case 'A':
+        case 'c':
+        case 'C': {
+            consumed += 1;
+            break;
+        }
+        case 's':
+        case 'S': {
+            consumed += 2;
+            break;
+        }
+        case 'i':
+        case 'I':
+        case 'f': {
+            consumed += 4;
+            break;
+        }
+        case 'H':
+        case 'Z': {
+            bool found = false;
+            for (size_t i = 0; i < max_size; i++) {
+                consumed += 1;
+                if (aux->vardata[i] == '\0') {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                return -1;
+            }
+            break;
+        }
+        case 'B': {
+            char subtype = aux->vardata[0];
+            consumed += 1;
+
+            uint32_t count = *reinterpret_cast<const uint32_t*>(&aux->vardata[1]);
+            consumed += 4;
+
+            switch(subtype) {
+                case 'c':
+                case 'C': {
+                    consumed += count;
+                    break;
+                }
+                case 's':
+                case 'S': {
+                    consumed += (2 * count);
+                    break;
+                }
+                case 'i':
+                case 'I':
+                case 'f': {
+                    consumed += (4 * count);
+                    break;
+                }
+            }
+            break;
+        }
+        default: {
+            return -1;
+            break;
+        }
+    }
+
+    return consumed;
+}
+
+
+static bool bam_valid_aux_data(const bam_rec_t* r) {
+    uint64_t aux_offset =
+        //sizeof(bam_rec_t) +
+        r->l_read_name * sizeof(char) + // read name
+        r->n_cigar_op * sizeof(uint32_t) + // cigar
+        ((r->l_seq + 1) / 2) * sizeof(uint8_t) + // seq
+        r->l_seq * sizeof(char) // qual
+    ;
+
+    auto aux_ptr = &r->vardata[aux_offset];
+
+    size_t total_consumed = sizeof(bam_rec_t) - sizeof(uint32_t) + aux_offset;
+
+    for (;;) {
+        
+        auto consumed = bam_consume_aux_item(aux_ptr, r->block_size);
+        if (consumed == -1) {
+            return false;
+        }
+
+        aux_ptr += consumed;
+        total_consumed += consumed;
+
+        if (total_consumed == r->block_size) {
+            break;
+        }
+        else if (total_consumed > r->block_size) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool bam_is_valid(bam::Header& header, const bam_rec_t* r) {
+
+    auto& refs = header.refs();
+    auto n_ref = static_cast<int32_t>(refs.size());
+
+    if (!(-1 <= r->ref_id && r->ref_id < n_ref)) {
+        return false;
+    }
+    if (!(-1 <= r->next_ref_id && r->next_ref_id < n_ref)) {
+        return false;
+    }
+
+    if (r->ref_id == -1) {
+        if (r->pos != 0) {
+            //return false;
+        }
+    }
+    else {
+        if (!(r->pos < refs[r->ref_id].l_ref)) {
+            return false;
+        }
+    }
+
+    if (r->next_ref_id == -1) {
+        if (r->next_pos != 0) {
+            //return false;
+        }
+    }
+    else {
+        if (!(r->next_pos < refs[r->next_ref_id].l_ref)) return false;
+    }
+
+    auto read_name = r->vardata;
+
+    if (read_name[r->l_read_name - 1] != '\0') {
+        return false;
+    }
+
+
+    for (size_t i = 0; i < r->l_read_name - 1; i++) {
+        if (read_name[i] < '!' || read_name[i] == '@' || read_name[i] > '~') {
+            return false;
+        }
+    }
+
+    //if (!(r->l_seq < r->block_size)) return false;
+
+    auto valid_aux_data = bam_valid_aux_data(r);
+    if (!valid_aux_data) return false;
 
     return true;
 }
