@@ -11,8 +11,8 @@
 #include "mfile.h"
 #include "index.h"
 #include "quickbam/mbgzf.h"
-#include <tbb/task_arena.h>
-#include <tbb/parallel_for.h>
+
+#include <taskflow/taskflow.hpp>
 
 #define BYTEREF(b) ((const uint8_t*)(b))
 #define BAMREF(b)  ((const bam_rec_t *)(b))
@@ -37,6 +37,8 @@
 
 // Macro for debug printing
 #define PRINT(x) std::cout << #x << ": " << x << std::endl;
+
+tf::Executor* quickbam_get_executor();
 
 //! This struct mirrors the byte layout of uncompressed bam header
 struct bam_header_t {
@@ -292,24 +294,22 @@ std::vector<uint8_t> bam_load_block(SLICER_T data, uint64_t ioffset_first, uint6
         std::vector<uint8_t> buffer;
         buffer.resize(dest_len);
 
-        tbb::this_task_arena::isolate([&] {
+        tf::Executor* executor = quickbam_get_executor();
+        tf::Taskflow taskflow;
 
-            tbb::parallel_for(tbb::blocked_range<size_t>(0, src_off_vector.size()), [&](const auto& r){
+        taskflow.for_each_index(0, (int)src_off_vector.size(), 1, [&] (int i) {
+            auto sl = i == src_off_vector.size() - 1 ? 
+            src_len             - src_off_vector[i] : 
+            src_off_vector[i+1] - src_off_vector[i];
 
-                auto sl = r.end() == src_off_vector.size() ? 
-                src_len                 - src_off_vector[r.begin()] : 
-                src_off_vector[r.end()] - src_off_vector[r.begin()];
+            auto dl = i == dest_off_vector.size() - 1 ? 
+            dest_len                 - dest_off_vector[i] :
+            dest_off_vector[i+1] - dest_off_vector[i];
 
-                auto dl = r.end() == dest_off_vector.size() ? 
-                dest_len                 - dest_off_vector[r.begin()] :
-                dest_off_vector[r.end()] - dest_off_vector[r.begin()];
-
-                inflate(src+src_off_vector[r.begin()], sl, &buffer[dest_off_vector[r.begin()]], dl);
-
-            });
+            inflate(src+src_off_vector[i], sl, &buffer[dest_off_vector[i]], dl);
         });
 
-        
+        executor->run(taskflow).get();
 
         return buffer;
     });
@@ -553,21 +553,21 @@ std::vector<region> bam_to_regions(SLICER_T slicer, size_t start_ioffset) {
     auto num_chunks = (end_coffset - start_coffset) / CHUNK_SZ;
 
     std::vector<size_t> region_starts(num_chunks);
-    tbb::this_task_arena::isolate([&] {
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, num_chunks), [&](const auto& r){
 
-            for (size_t chunk_idx = r.begin(); chunk_idx < r.end(); chunk_idx++) {
+    tf::Executor* executor = quickbam_get_executor();
+    tf::Taskflow taskflow;
 
-                auto search_coffset = start_coffset + (chunk_idx * CHUNK_SZ);
-                auto search_uoffset = start_uoffset;
+    taskflow.for_each_index(0, (int)num_chunks, 1, [&] (int chunk_idx) {
+        auto search_coffset = start_coffset + (chunk_idx * CHUNK_SZ);
+        auto search_uoffset = start_uoffset;
 
-                auto result = bam_find_next_read(slicer, header, search_coffset, start_uoffset);
-                assert(result.success);
+        auto result = bam_find_next_read(slicer, header, search_coffset, start_uoffset);
+        assert(result.success);
 
-                region_starts[chunk_idx] = result.ioffset;
-            }
-        });
+        region_starts[chunk_idx] = result.ioffset;
     });
+
+    executor->run(taskflow).get();
 
     auto first = true;
     uint64_t region_start = 0;

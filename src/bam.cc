@@ -7,6 +7,9 @@
 
 #include <tbb/parallel_for.h>
 
+#include <taskflow/taskflow.hpp>
+
+
 
 bool bam_buffer_contains_header(const std::vector<uint8_t>& buffer) {
     // fixed part of the header
