@@ -154,3 +154,106 @@ TEST(BAMIterator, CanBeAdvanced) {
     EXPECT_EQ(bam_it->ref_id, 0);
     EXPECT_EQ(bam_it->pos, 10358);
 }
+
+
+TEST(BAMAux, Handles_A) {
+    uint8_t buf[] = { 0, 0, 'A', 0 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 4);
+}
+
+TEST(BAMAux, Handles_c) {
+    uint8_t buf[] = { 0, 0, 'c', 0 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 4);
+}
+
+TEST(BAMAux, Handles_C) {
+    uint8_t buf[] = { 0, 0, 'C', 0 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 4);
+}
+
+TEST(BAMAux, Handles_s) {
+    uint8_t buf[] = { 0, 0, 's', 8, 4 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 5);
+}
+
+TEST(BAMAux, Handles_S) {
+    uint8_t buf[] = { 0, 0, 'S', 3, 2 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 5);
+}
+
+TEST(BAMAux, Handles_i) {
+    uint8_t buf[] = { 0, 0, 'i', 3, 2, 9, 43 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 7);
+}
+
+TEST(BAMAux, Handles_I) {
+    uint8_t buf[] = { 0, 0, 'I', 3, 2, 9, 43 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 7);
+}
+
+TEST(BAMAux, Handles_f) {
+    uint8_t buf[] = { 0, 0, 'f', 3, 2, 9, 43 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 7);
+}
+
+TEST(BAMAux, Handles_Z) {
+    uint8_t buf[] = { 0, 0, 'H', 3, 2, 22, 34, 0 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 8);
+}
+
+TEST(BAMAux, Handles_Bc) {
+    uint8_t buf[] = { 0, 0, 'B', 'c', 2, 0, 0, 0, 1, 2 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 10);
+}
+
+TEST(BAMAux, Handles_BC) {
+    uint8_t buf[] = { 0, 0, 'B', 'C', 2, 0, 0, 0, 1, 2 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 10);
+}
+
+TEST(BAMAux, Handles_Bs) {
+    uint8_t buf[] = { 0, 0, 'B', 's', 2, 0, 0, 0, 1, 2, 3, 4 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 12);
+}
+
+TEST(BAMAux, Handles_BS) {
+    uint8_t buf[] = { 0, 0, 'B', 'S', 2, 0, 0, 0, 1, 2, 3, 4 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 12);
+}
+
+TEST(BAMAux, Handles_Bi) {
+    uint8_t buf[] = { 0, 0, 'B', 'i', 2, 0, 0, 0, 1, 2, 3, 4, 1, 2, 3, 4 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 16);
+}
+
+TEST(BAMAux, Handles_BI) {
+    uint8_t buf[] = { 0, 0, 'B', 'I', 2, 0, 0, 0, 1, 2, 3, 4, 1, 2, 3, 4 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 16);
+}
+
+TEST(BAMAux, Handles_Bf) {
+    uint8_t buf[] = { 0, 0, 'B', 'f', 2, 0, 0, 0, 1, 2, 3, 4, 1, 2, 3, 4 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, 16);
+}
+
+TEST(BAMAux, FailsInvalid) {
+    uint8_t buf[] = { 0, 0, '%', 'f', 2, 0, 0, 0, 1, 2, 3, 4, 1, 2, 3, 4 };
+    auto consumed = bam_consume_aux_item(buf, 100);
+    EXPECT_EQ(consumed, -1);
+}
