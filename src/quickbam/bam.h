@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <algorithm>
 #include "nfo_iterator.h"
 #include "mfile.h"
 #include "index.h"
@@ -365,11 +366,20 @@ std::vector<uint8_t> bam_load_region(SLICER_T data, const index_t& index, int32_
     if(end_intv > index.ref[ref_id].n_intv - 1)
         end_intv = index.ref[ref_id].n_intv - 1;
 
+    // find pseudo-bin for reference
+    uint32_t i_pseudo_bin = 0;
+    for(; i_pseudo_bin < index.ref[ref_id].n_bin; i_pseudo_bin++) {
+        if(index.ref[ref_id].bin[i_pseudo_bin].bin_id == 37450) break;
+    }
+    if(i_pseudo_bin == index.ref[ref_id].n_bin) throw std::runtime_error("cannot find the pseudo bin for reference; possibly corrupted index");
+    uint64_t ref_start = index.ref[ref_id].bin[i_pseudo_bin].chunk[0].beg;
+    uint64_t ref_end   = index.ref[ref_id].bin[i_pseudo_bin].chunk[0].end;
+
     // load bgzf block in batch
     std::vector<uint8_t> bam_buffer_preload = bam_load_block(
             data,
-            index.ref[ref_id].ioffset[start_intv],
-            index.ref[ref_id].ioffset[end_intv]);
+            std::max(index.ref[ref_id].ioffset[start_intv], ref_start),
+            std::min(index.ref[ref_id].ioffset[end_intv], ref_end));
 
     auto bam_iter = reinterpret_cast<const bam_rec_t *>(bam_buffer_preload.data());
     auto buffer_end = bam_buffer_preload.data() + bam_buffer_preload.size();
