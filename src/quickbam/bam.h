@@ -367,13 +367,12 @@ std::vector<uint8_t> bam_load_region(SLICER_T data, const index_t& index, int32_
         end_intv = index.ref[ref_id].n_intv - 1;
 
     // find pseudo-bin for reference
-    uint32_t i_pseudo_bin = 0;
-    for(; i_pseudo_bin < index.ref[ref_id].n_bin; i_pseudo_bin++) {
-        if(index.ref[ref_id].bin[i_pseudo_bin].bin_id == 37450) break;
-    }
-    if(i_pseudo_bin == index.ref[ref_id].n_bin) throw std::runtime_error("cannot find the pseudo bin for reference; possibly corrupted index");
-    uint64_t ref_start = index.ref[ref_id].bin[i_pseudo_bin].chunk[0].beg;
-    uint64_t ref_end   = index.ref[ref_id].bin[i_pseudo_bin].chunk[0].end;
+    auto* pseudo_bin = std::find_if(index.ref[ref_id].bin, index.ref[ref_id].bin + index.ref[ref_id].n_bin, [](auto &bin){ return bin.bin_id == 37450; });
+   
+    if(pseudo_bin == index.ref[ref_id].bin + index.ref[ref_id].n_bin) throw std::runtime_error("cannot find the pseudo bin for reference; possibly corrupted index");
+    
+    auto ref_start = pseudo_bin->chunk[0].beg;
+    auto ref_end   = pseudo_bin->chunk[0].end;
 
     // load bgzf block in batch
     std::vector<uint8_t> bam_buffer_preload = bam_load_block(
@@ -432,7 +431,6 @@ std::vector<uint8_t> bam_load_region(SLICER_T data, const index_t& index, int32_
         bam_iter = reinterpret_cast<const bam_rec_t *>(bam_buffer.data() + next_offset);
 
         // try to find out-of-bound read in bam_buffer
-        //decltype(bam_iter) bam_prev;
         auto buffer_end = bam_buffer.data() + bam_buffer.size();
 
         // loop while current read is within buffer
@@ -449,17 +447,9 @@ std::vector<uint8_t> bam_load_region(SLICER_T data, const index_t& index, int32_
                 first_in_region = BYTEREF(bam_iter) - bam_buffer.data() - index_uoffset(ioffset);
             }
 
-            //if(BYTEREF(BAM_NEXT(bam_iter)) >= buffer_end) break; // next read out of bound{
-            //    bam_prev = bam_iter;
-            //    break;
-            //}
-            //bam_prev = bam_iter;
-
             bam_iter = BAM_NEXT(bam_iter);
         }
 
-        // did not find out-of-bound read, readjust prev_offset
-        //prev_offset = BYTEREF(bam_prev) - bam_buffer.data();
         next_offset = BYTEREF(bam_iter) - bam_buffer.data(); // calculate next read offset
     }
     
