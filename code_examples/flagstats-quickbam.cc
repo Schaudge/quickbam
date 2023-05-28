@@ -54,7 +54,6 @@ DEALINGS IN THE SOFTWARE.  */
 #include <quickbam/bam.h>
 #include <quickbam/index.h>
 #include <quickbam/slicer.h>
-#include <quickbam/instrument.h>
 
 // The following defs are taken from htslib/sam.h
 /*! @abstract the read is paired in sequencing, no matter whether it is mapped in a pair */
