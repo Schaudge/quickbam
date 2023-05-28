@@ -15,8 +15,7 @@ build:
   before_script:
     - echo "build - before_script"
     - ls
-    - apt update && apt -y install make autoconf libdeflate-dev libgtest-dev libtbb-dev doxygen python3-pip
-    - pip install sphinx sphinx-rtd-theme breathe
+    - apt update && apt -y install make autoconf libdeflate-dev libgtest-dev libtbb-dev doxygen python3-sphinx python3-sphinx-rtd-theme python3-breathe
     - autoreconf -i
     - mkdir -p build
     - cd build
