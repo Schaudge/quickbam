@@ -76,7 +76,7 @@ Setting up a project
 We recommend using autotools or CMake to setup the build system of your new
 project. If you prefer to write makefiles manually, make sure to 
 
-* enable C++14 features (e.g. ``-std=c++14``) during compilation
+* enable C++17 features (e.g. ``-std=c++17``) during compilation
 * include the appropriate libraries ``-lquickbam -ldeflate -ltbb`` during linking.  
 
 Examples using the automake build system are available under the
