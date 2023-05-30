@@ -4,13 +4,19 @@ else
 AM_CXXFLAGS=-O3
 endif
 
-bin_PROGRAMS=readcount-quickbam flagstats-quickbam snp-pileup-quickbam
+bin_PROGRAMS=flagstats-quickbam snp-pileup-quickbam
+
+if HAS_OPENMP
+bin_PROGRAMS += readcount-quickbam 
+endif
 
 AM_CPPFLAGS = -I$(top_srcdir)/src
 
+if HAS_OPENMP
 readcount_quickbam_SOURCES  = readcount-quickbam.cc
-readcount_quickbam_CXXFLAGS = -fopenmp
+readcount_quickbam_CXXFLAGS = @OPENMP_FLAGS@
 readcount_quickbam_LDADD    = $(top_builddir)/src/libquickbam.la -ltbb -ldeflate
+endif
 
 flagstats_quickbam_SOURCES = flagstats-quickbam.cc
 flagstats_quickbam_LDADD   = $(top_builddir)/src/libquickbam.la -ltbb -ldeflate

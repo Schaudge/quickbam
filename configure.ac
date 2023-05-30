@@ -14,8 +14,9 @@ AM_COND_IF([DEBUG], [AC_DEFINE([LOGLVL], [LOGLV_DEBUG], [Compile time log level]
 AC_PROG_CC
 AC_PROG_CXX
 
-# C++14
-AX_CXX_COMPILE_STDCXX_14
+# C++17
+AX_CXX_COMPILE_STDCXX_17
+AX_OPENMP
 
 # Automake
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
@@ -27,6 +28,9 @@ LT_PREREQ([2.4])
 LT_INIT()
 
 AX_PTHREAD
+
+AM_CONDITIONAL([HAS_OPENMP], [test -n $OPENMP_CFLAGS])
+AC_SUBST([OPENMP_FLAGS], [$OPENMP_CFLAGS])
 
 # Doxygen and sphinx
 AC_CHECK_PROGS([DOXYGEN], [doxygen])
