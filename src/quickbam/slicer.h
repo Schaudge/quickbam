@@ -1,6 +1,14 @@
 #ifndef QUICKBAM_SLICER_H
 #define QUICKBAM_SLICER_H
 
+#include <memory>
+#include <string>
+#include <stdexcept>
+#include <unistd.h>
+#include <sys/stat.h>
+
+#include <quickbam/mfile.h>
+
 /*! Slicer type that abstracts over an mfile */
 struct mfile_slicer_t {
     using ptr_t = std::shared_ptr<const uint8_t[]>;
