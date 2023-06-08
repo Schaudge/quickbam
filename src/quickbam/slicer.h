@@ -83,6 +83,9 @@ struct file_slicer_t {
 
         while(range_size > 0) {
             auto n_read = pread(fd, buf_ptr, range_size, start);
+            if (n_read == 0) {
+                break;
+            }
             range_size -= n_read;
             start += n_read;
             buf_ptr += n_read;
