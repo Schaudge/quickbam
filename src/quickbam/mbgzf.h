@@ -35,6 +35,7 @@
 
 constexpr auto bgzf_xlen_offset = 10;
 constexpr auto bgzf_block_size_offset = 16;
+constexpr auto bgzf_block_size_size = sizeof(uint16_t);
 constexpr auto bgzf_cdata_offset = 18;
 
 const uint32_t BGZF_MAX_BLOCK_SIZE = 65536;
@@ -80,8 +81,12 @@ struct bgzf_slicer_iterator_t : std::iterator<std::forward_iterator_tag, bgzf_bl
     size_t current_block_size;
 
     void load_current_block() {
+        if ((current_offset + bgzf_block_size_offset + bgzf_block_size_size) >= data.size()) {
+            return;
+        }
+
         auto block_size_slice_start = current_offset + bgzf_block_size_offset;
-        auto block_size_slice_end = block_size_slice_start + sizeof(uint16_t);
+        auto block_size_slice_end = block_size_slice_start + bgzf_block_size_size;
         auto block_size_slice = data.slice(block_size_slice_start, block_size_slice_end);
         auto block_size = *reinterpret_cast<const uint16_t*>(block_size_slice.get()) + 1;
 
@@ -116,9 +121,7 @@ struct bgzf_slicer_iterator_t : std::iterator<std::forward_iterator_tag, bgzf_bl
      */
     bgzf_slicer_iterator_t(SLICER_T slicer, size_t starting_offset) :
             current_offset(starting_offset), current_block_size(0), data(slicer) {
-
-        if(starting_offset < slicer.size())
-            load_current_block();
+        load_current_block();
     }
 
     bgzf_slicer_iterator_t operator++() {
